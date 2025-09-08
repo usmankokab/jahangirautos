@@ -139,31 +139,10 @@ if (isset($_GET['error'])) {
       <li class="nav-item">
         <a
           class="nav-link"
-          data-bs-toggle="collapse"
-          href="#rentMenu"
-          role="button"
-          aria-expanded="false"
-          aria-controls="rentMenu">
-          <i class="bi bi-house-door"></i>
+          href="<?= BASE_URL ?>/views/list_rents.php">
+          <i class="bi bi-house-door me-2 sidebar-icon"></i>
           <span>Rent</span>
-          <i class="bi bi-chevron-down ms-auto"></i>
         </a>
-        <div class="collapse" id="rentMenu">
-          <ul class="nav flex-column ms-3">
-            <li class="nav-item">
-              <a class="nav-link" href="<?= BASE_URL ?>/views/add_rent.php">
-                <i class="bi bi-house-add"></i>
-                <span>Add Rent</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="<?= BASE_URL ?>/views/list_rents.php">
-                <i class="bi bi-house-check"></i>
-                <span>Rent List</span>
-              </a>
-            </li>
-          </ul>
-        </div>
       </li>
 
       <!-- Reports -->
@@ -175,7 +154,7 @@ if (isset($_GET['error'])) {
           role="button"
           aria-expanded="false"
           aria-controls="reportsMenu">
-          <i class="bi bi-bar-chart-line"></i>
+          <i class="bi bi-bar-chart-line me-2"></i>
           <span>Reports</span>
           <i class="bi bi-chevron-down ms-auto"></i>
         </a>
@@ -183,25 +162,25 @@ if (isset($_GET['error'])) {
           <ul class="nav flex-column ms-3">
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/sales_summary_report.php">
-                <i class="bi bi-graph-up"></i>
+                <i class="bi bi-graph-up me-2"></i>
                 <span>Sales Summary</span>
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/installment_analysis_report.php">
-                <i class="bi bi-calendar-check"></i>
+                <i class="bi bi-calendar-check me-2"></i>
                 <span>Installment Analysis</span>
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/customer_performance_report.php">
-                <i class="bi bi-person-badge"></i>
+                <i class="bi bi-person-badge me-2"></i>
                 <span>Customer Performance</span>
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_summary_report.php">
-                <i class="bi bi-house-gear"></i>
+                <i class="bi bi-house-gear me-2"></i>
                 <span>Rent Summary</span>
               </a>
             </li>

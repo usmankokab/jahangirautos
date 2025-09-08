@@ -9,7 +9,8 @@ $offset = ($page - 1) * ($limit > 0 ? $limit : 0);
 
 // Build SQL query with filters
 $sql = "SELECT s.id, s.sale_date, c.name cust, p.name prod, p.model,
-         s.total_amount, s.down_payment, s.monthly_installment, s.months,
+         s.total_amount, s.down_payment, s.monthly_installment, s.months, s.interest_rate,
+         (s.total_amount + ((s.total_amount * s.interest_rate) / 100)) as due_amount,
          COUNT(*) OVER() as total_records
   FROM sales s
   JOIN customers c ON c.id=s.customer_id
@@ -169,7 +170,8 @@ $total_pages_default = ceil($total_records / 20);
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Customer</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Product</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Model</th>
-          <th style="color: white; font-weight: bold; background-color: #007bff !important;">Total</th>
+          <th style="color: white; font-weight: bold; background-color: #007bff !important;">Price</th>
+          <th style="color: white; font-weight: bold; background-color: #007bff !important;">Due</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">DP</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Monthly</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Term</th>
@@ -186,9 +188,10 @@ $total_pages_default = ceil($total_records / 20);
         <td><?= htmlspecialchars($r['cust']) ?></td>
         <td><?= htmlspecialchars($r['prod']) ?></td>
         <td><?= isset($r['model']) ? htmlspecialchars($r['model']) : 'N/A' ?></td>
-        <td><?= number_format($r['total_amount'],2) ?></td>
-        <td><?= number_format($r['down_payment'],2) ?></td>
-        <td><?= number_format($r['monthly_installment'],2) ?></td>
+        <td><?= number_format($r['total_amount'],0) ?></td>
+        <td><?= number_format($r['due_amount'],0) ?></td>
+        <td><?= number_format($r['down_payment'],0) ?></td>
+        <td><?= number_format($r['monthly_installment'],0) ?></td>
         <td><?= $r['months'] ?></td>
         <td class="text-center no-print">
           <button type="button" class="btn btn-sm btn-outline-primary" 
@@ -467,21 +470,18 @@ document.getElementById('addDownPayment').addEventListener('input', calculateAdd
 function calculateAddMonthlyInstallment() {
   let price = parseFloat(document.getElementById('addPrice').value) || 0;
   let months = parseFloat(document.getElementById('addMonths').value) || 0;
-  let annualRate = parseFloat(document.getElementById('addRate').value) || 0;
+  let rate = parseFloat(document.getElementById('addRate').value) || 0;
   let downPayment = parseFloat(document.getElementById('addDownPayment').value) || 0;
   
-  if (price > 0 && months > 0 && annualRate > 0) {
-    let principal = price - downPayment; // P = Loan Principal after down payment
-    let monthlyRate = annualRate / 100 / 12; // i = monthly interest rate
-    let n = months; // n = loan term in months
+  if (price > 0 && months > 0) {
+    let remainingAmount = price - downPayment;
+    let interestAmount = (remainingAmount * rate) / 100;
+    let totalAmount = remainingAmount + interestAmount;
+    let monthlyInstallment = totalAmount / months;
+    document.getElementById('addMonthlyInstallment').value = Math.round(monthlyInstallment);
     
-    // Monthly Installment = P × i × (1+i)^n / ((1+i)^n - 1)
-    let monthlyInstallment = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
-    document.getElementById('addMonthlyInstallment').value = monthlyInstallment.toFixed(2);
-    
-    // Total Amount Paid = Monthly Installment × Number of Months
     let totalInstallmentAmount = monthlyInstallment * months;
-    document.getElementById('addTotalInstallmentAmount').value = totalInstallmentAmount.toFixed(2);
+    document.getElementById('addTotalInstallmentAmount').value = Math.round(totalInstallmentAmount);
   } else {
     document.getElementById('addMonthlyInstallment').value = '';
     document.getElementById('addTotalInstallmentAmount').value = '';
@@ -509,21 +509,18 @@ document.getElementById('editDownPayment').addEventListener('input', calculateEd
 function calculateEditMonthlyInstallment() {
   let price = parseFloat(document.getElementById('editPrice').value) || 0;
   let months = parseFloat(document.getElementById('editMonths').value) || 0;
-  let annualRate = parseFloat(document.getElementById('editRate').value) || 0;
+  let rate = parseFloat(document.getElementById('editRate').value) || 0;
   let downPayment = parseFloat(document.getElementById('editDownPayment').value) || 0;
   
-  if (price > 0 && months > 0 && annualRate > 0) {
-    let principal = price - downPayment; // P = Loan Principal after down payment
-    let monthlyRate = annualRate / 100 / 12; // i = monthly interest rate
-    let n = months; // n = loan term in months
+  if (price > 0 && months > 0) {
+    let remainingAmount = price - downPayment;
+    let interestAmount = (remainingAmount * rate) / 100;
+    let totalAmount = remainingAmount + interestAmount;
+    let monthlyInstallment = totalAmount / months;
+    document.getElementById('editMonthlyInstallment').value = Math.round(monthlyInstallment);
     
-    // Monthly Installment = P × i × (1+i)^n / ((1+i)^n - 1)
-    let monthlyInstallment = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
-    document.getElementById('editMonthlyInstallment').value = monthlyInstallment.toFixed(2);
-    
-    // Total Amount Paid = Monthly Installment × Number of Months
     let totalInstallmentAmount = monthlyInstallment * months;
-    document.getElementById('editTotalInstallmentAmount').value = totalInstallmentAmount.toFixed(2);
+    document.getElementById('editTotalInstallmentAmount').value = Math.round(totalInstallmentAmount);
   } else {
     document.getElementById('editMonthlyInstallment').value = '';
     document.getElementById('editTotalInstallmentAmount').value = '';

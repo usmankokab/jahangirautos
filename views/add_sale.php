@@ -122,10 +122,11 @@ function calculateMonthlyInstallment() {
   let downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
   
   if (price > 0 && months > 0) {
-    let markup = (price * rate) / 100;
-    let balance = price + markup - downPayment;
-    let monthlyInstallment = balance / months;
-    document.getElementById('monthlyInstallment').value = monthlyInstallment.toFixed(2);
+    let remainingAmount = price - downPayment;
+    let interestAmount = (remainingAmount * rate) / 100;
+    let totalAmount = remainingAmount + interestAmount;
+    let monthlyInstallment = totalAmount / months;
+    document.getElementById('monthlyInstallment').value = Math.round(monthlyInstallment);
   } else {
     document.getElementById('monthlyInstallment').value = '';
   }
@@ -140,7 +141,7 @@ function calculateTotalInstallmentAmount() {
   
   if (monthlyInstallment > 0 && months > 0) {
     let totalInstallmentAmount = monthlyInstallment * months;
-    document.getElementById('totalInstallmentAmount').value = totalInstallmentAmount.toFixed(2);
+    document.getElementById('totalInstallmentAmount').value = Math.round(totalInstallmentAmount);
   } else {
     document.getElementById('totalInstallmentAmount').value = '';
   }

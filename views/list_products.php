@@ -141,7 +141,7 @@ include '../includes/header.php';
               <td><?= $row['id'] ?></td>
               <td><?= htmlspecialchars($row['name']) ?></td>
               <td><?= isset($row['model']) ? htmlspecialchars($row['model']) : 'N/A' ?></td>
-              <td><?= number_format($row['price'], 2) ?></td>
+              <td><?= number_format($row['price'], 0) ?></td>
               <td><?= isset($row['stock_status']) ? ucfirst(str_replace('_', ' ', $row['stock_status'])) : 'N/A' ?></td>
               <td><?= $row['installment_months'] ?></td>
               <td><?= $row['interest_rate'] ?></td>

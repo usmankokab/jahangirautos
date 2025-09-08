@@ -74,8 +74,11 @@ $total_pages_default = ceil($total_records / 20);
 
 <div class="container-fluid">
   <div class="d-flex justify-content-between mb-2">
-    <h2 class="mb-0">Rent List</h2>
+    <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Rent Records</h2>
     <div class="d-flex gap-2 no-print">
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRentModal">
+        <i class="bi bi-plus-circle"></i> Add Rent
+      </button>
       <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
       <?php if ($total_pages_default > 1): ?>
       <button class="btn btn-outline-secondary" onclick="printAllRecords()"><i class="bi bi-printer"></i> Print All</button>
@@ -123,8 +126,8 @@ $total_pages_default = ceil($total_records / 20);
         <div class="col-md-2">
           <label class="form-label">&nbsp;</label>
           <div class="d-flex">
-            <a href="<?= BASE_URL ?>/views/list_rents.php" class="btn btn-secondary me-2">Clear</a>
-            <button type="submit" class="btn btn-primary">Filter</button>
+            <button type="submit" class="btn btn-primary me-2">Filter</button>
+            <a href="<?= BASE_URL ?>/views/list_rents.php" class="btn btn-secondary">Clear</a>
           </div>
         </div>
       </form>
@@ -132,9 +135,17 @@ $total_pages_default = ceil($total_records / 20);
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle">
-      <thead class="table-dark">
-        <tr>
-          <th>#</th><th>Customer</th><th>Product</th><th>Type</th><th>Start</th><th>End</th><th>Rent</th><th>Actions</th>
+      <thead>
+        <tr style="background-color: #0d6efd !important;">
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">#</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Customer</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Product</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Type</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Start</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">End</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Rent</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Due</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;" class="text-center no-print">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -150,15 +161,30 @@ $total_pages_default = ceil($total_records / 20);
         <td><?= $r['end_date'] ?></td>
         <td>
           <?php if($r['rent_type']==='daily'): ?>
-            <?= number_format($r['daily_rent'],2) ?> / day
+            <?= number_format($r['daily_rent'],0) ?> / day
           <?php else: ?>
-            <?= number_format($r['total_rent'],2) ?>
+            <?= number_format($r['total_rent'],0) ?>
           <?php endif; ?>
         </td>
         <td>
-          <a href="edit_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Rent">
+          <?php 
+            if($r['rent_type']==='daily') {
+              $start = new DateTime($r['start_date']);
+              $end = new DateTime($r['end_date']);
+              $days = $start->diff($end)->days + 1;
+              $due = $r['daily_rent'] * $days;
+            } else {
+              $due = $r['total_rent'];
+            }
+            echo number_format($due, 0);
+          ?>
+        </td>
+        <td class="text-center no-print">
+          <button type="button" class="btn btn-sm btn-outline-primary" 
+                  onclick="editRent(<?= $r['id'] ?>)" 
+                  title="Edit Rent">
             <i class="bi bi-pencil"></i>
-          </a>
+          </button>
           <a href="view_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-info" title="View Rent">
             <i class="bi bi-eye"></i>
           </a>
@@ -227,13 +253,181 @@ $total_pages_default = ceil($total_records / 20);
   <?php endif; ?>
 </div>
 
+<!-- Add Rent Modal -->
+<div class="modal fade" id="addRentModal" tabindex="-1" aria-labelledby="addRentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addRentModalLabel">Add New Rent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="<?= BASE_URL ?>/actions/insert_rent.php" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Customer</label>
+              <select name="customer_id" class="form-select" required>
+                <option value="">Select Customer</option>
+                <?php
+                  $custs = $conn->query("SELECT id, name FROM customers ORDER BY name");
+                  while($c = $custs->fetch_assoc()):
+                ?>
+                  <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+                <?php endwhile; ?>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Product Name</label>
+              <input type="text" name="product_name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rent Type</label>
+              <select name="rent_type" id="addRentType" class="form-select" required onchange="toggleAddRentType()">
+                <option value="daily">Daily Rent</option>
+                <option value="once">Rent Once</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="addDailyRentDiv">
+              <label class="form-label">Daily Rent (PKR)</label>
+              <input type="number" step="0.01" name="daily_rent" class="form-control">
+            </div>
+            <div class="col-md-6" id="addTotalRentDiv" style="display:none;">
+              <label class="form-label">Total Rent (PKR)</label>
+              <input type="number" step="0.01" name="total_rent" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Start Date</label>
+              <input type="date" name="start_date" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">End Date</label>
+              <input type="date" name="end_date" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Comments</label>
+              <textarea name="comments" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-success">Add Rent</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Rent Modal -->
+<div class="modal fade" id="editRentModal" tabindex="-1" aria-labelledby="editRentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editRentModalLabel">Edit Rent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="<?= BASE_URL ?>/actions/update_rent.php" method="POST" id="editRentForm">
+        <input type="hidden" name="rent_id" id="editRentId">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Customer</label>
+              <select name="customer_id" id="editCustomerId" class="form-select" required>
+                <option value="">Select Customer</option>
+                <?php
+                  $custs = $conn->query("SELECT id, name FROM customers ORDER BY name");
+                  while($c = $custs->fetch_assoc()):
+                ?>
+                  <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+                <?php endwhile; ?>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Product Name</label>
+              <input type="text" name="product_name" id="editProductName" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rent Type</label>
+              <select name="rent_type" id="editRentType" class="form-select" required onchange="toggleEditRentType()">
+                <option value="daily">Daily Rent</option>
+                <option value="once">Rent Once</option>
+              </select>
+            </div>
+            <div class="col-md-6" id="editDailyRentDiv">
+              <label class="form-label">Daily Rent (PKR)</label>
+              <input type="number" step="0.01" name="daily_rent" id="editDailyRent" class="form-control">
+            </div>
+            <div class="col-md-6" id="editTotalRentDiv" style="display:none;">
+              <label class="form-label">Total Rent (PKR)</label>
+              <input type="number" step="0.01" name="total_rent" id="editTotalRent" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Start Date</label>
+              <input type="date" name="start_date" id="editStartDate" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">End Date</label>
+              <input type="date" name="end_date" id="editEndDate" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Comments</label>
+              <textarea name="comments" id="editComments" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-success">Update Rent</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 function printAllRecords() {
-  // Open a new window with all records
   const url = new URL(window.location.href);
   url.searchParams.set('limit', 'all');
   url.searchParams.delete('page');
   window.open(url.toString(), '_blank');
+}
+
+// Add Rent Modal Functions
+function toggleAddRentType() {
+  var type = document.getElementById('addRentType').value;
+  document.getElementById('addDailyRentDiv').style.display = (type === 'daily') ? 'block' : 'none';
+  document.getElementById('addTotalRentDiv').style.display = (type === 'once') ? 'block' : 'none';
+}
+
+// Edit Rent Modal Functions
+function toggleEditRentType() {
+  var type = document.getElementById('editRentType').value;
+  document.getElementById('editDailyRentDiv').style.display = (type === 'daily') ? 'block' : 'none';
+  document.getElementById('editTotalRentDiv').style.display = (type === 'once') ? 'block' : 'none';
+}
+
+function editRent(id) {
+  fetch(`<?= BASE_URL ?>/actions/get_rent.php?id=${id}`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('editRentId').value = data.id;
+      document.getElementById('editCustomerId').value = data.customer_id;
+      document.getElementById('editProductName').value = data.product_name;
+      document.getElementById('editRentType').value = data.rent_type;
+      document.getElementById('editDailyRent').value = data.daily_rent || '';
+      document.getElementById('editTotalRent').value = data.total_rent || '';
+      document.getElementById('editStartDate').value = data.start_date;
+      document.getElementById('editEndDate').value = data.end_date;
+      document.getElementById('editComments').value = data.comments || '';
+      
+      toggleEditRentType();
+      
+      new bootstrap.Modal(document.getElementById('editRentModal')).show();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error loading rent data');
+    });
 }
 </script>
 
