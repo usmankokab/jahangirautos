@@ -9,9 +9,11 @@ $offset = ($page - 1) * ($limit > 0 ? $limit : 0);
 
 // Build SQL query with filters
 $sql = "SELECT r.*, c.name AS customer,
+         COALESCE(SUM(rp.paid_amount), 0) as total_paid,
          COUNT(*) OVER() as total_records
   FROM rents r
   JOIN customers c ON c.id=r.customer_id
+  LEFT JOIN rent_payments rp ON r.id=rp.rent_id
   WHERE 1=1";
 
 $params = [];
@@ -41,6 +43,8 @@ if (!empty($_GET['rent_type'])) {
   $params[] = $_GET['rent_type'];
   $types .= "s";
 }
+
+$sql .= " GROUP BY r.id, r.customer_id, r.product_name, r.rent_type, r.daily_rent, r.total_rent, r.start_date, r.end_date, r.comments, r.created_at, c.name";
 
 if ($limit > 0) {
   $sql .= " ORDER BY r.created_at DESC LIMIT ? OFFSET ?";
@@ -145,6 +149,8 @@ $total_pages_default = ceil($total_records / 20);
           <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">End</th>
           <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Rent</th>
           <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Due</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Paid</th>
+          <th style="color: white; font-weight: bold; background-color: #0d6efd !important;">Remaining</th>
           <th style="color: white; font-weight: bold; background-color: #0d6efd !important;" class="text-center no-print">Actions</th>
         </tr>
       </thead>
@@ -179,6 +185,8 @@ $total_pages_default = ceil($total_records / 20);
             echo number_format($due, 0);
           ?>
         </td>
+        <td><?= number_format($r['total_paid'], 0) ?></td>
+        <td><?= number_format($due - $r['total_paid'], 0) ?></td>
         <td class="text-center no-print">
           <button type="button" class="btn btn-sm btn-outline-primary" 
                   onclick="editRent(<?= $r['id'] ?>)" 

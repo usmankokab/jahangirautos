@@ -11,10 +11,13 @@ $offset = ($page - 1) * ($limit > 0 ? $limit : 0);
 $sql = "SELECT s.id, s.sale_date, c.name cust, p.name prod, p.model,
          s.total_amount, s.down_payment, s.monthly_installment, s.months, s.interest_rate,
          (s.total_amount + ((s.total_amount * s.interest_rate) / 100)) as due_amount,
+         COALESCE(SUM(i.paid_amount), 0) as total_paid,
+         ((s.total_amount + ((s.total_amount * s.interest_rate) / 100)) - COALESCE(SUM(i.paid_amount), 0)) as remaining_amount,
          COUNT(*) OVER() as total_records
   FROM sales s
   JOIN customers c ON c.id=s.customer_id
   JOIN products p  ON p.id=s.product_id
+  LEFT JOIN installments i ON s.id=i.sale_id
   WHERE 1=1";
 
 $params = [];
@@ -56,6 +59,8 @@ if (!empty($_GET['model'])) {
   $params[] = '%' . $_GET['model'] . '%';
   $types .= "s";
 }
+
+$sql .= " GROUP BY s.id, s.sale_date, c.name, p.name, p.model, s.total_amount, s.down_payment, s.monthly_installment, s.months, s.interest_rate";
 
 if ($limit > 0) {
   $sql .= " ORDER BY s.created_at DESC LIMIT ? OFFSET ?";
@@ -172,6 +177,8 @@ $total_pages_default = ceil($total_records / 20);
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Model</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Price</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Due</th>
+          <th style="color: white; font-weight: bold; background-color: #007bff !important;">Paid</th>
+          <th style="color: white; font-weight: bold; background-color: #007bff !important;">Remaining</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">DP</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Monthly</th>
           <th style="color: white; font-weight: bold; background-color: #007bff !important;">Term</th>
@@ -190,6 +197,8 @@ $total_pages_default = ceil($total_records / 20);
         <td><?= isset($r['model']) ? htmlspecialchars($r['model']) : 'N/A' ?></td>
         <td><?= number_format($r['total_amount'],0) ?></td>
         <td><?= number_format($r['due_amount'],0) ?></td>
+        <td><?= number_format($r['total_paid'],0) ?></td>
+        <td><?= number_format($r['remaining_amount'],0) ?></td>
         <td><?= number_format($r['down_payment'],0) ?></td>
         <td><?= number_format($r['monthly_installment'],0) ?></td>
         <td><?= $r['months'] ?></td>
