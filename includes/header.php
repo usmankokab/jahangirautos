@@ -160,16 +160,17 @@ if (isset($_GET['error'])) {
         </a>
         <div class="collapse" id="reportsMenu">
           <ul class="nav flex-column ms-3">
+            <!-- Sales Reports -->
+            <li class="nav-item">
+              <a class="nav-link text-primary fw-bold" href="#" onclick="return false;">
+                <i class="bi bi-cart-fill me-2"></i>
+                <span>Sales Reports</span>
+              </a>
+            </li>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/sales_summary_report.php">
                 <i class="bi bi-graph-up me-2"></i>
                 <span>Sales Summary</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="<?= BASE_URL ?>/views/installment_analysis_report.php">
-                <i class="bi bi-calendar-check me-2"></i>
-                <span>Installment Analysis</span>
               </a>
             </li>
             <li class="nav-item">
@@ -179,9 +180,67 @@ if (isset($_GET['error'])) {
               </a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/installment_analysis_report.php">
+                <i class="bi bi-calendar-check me-2"></i>
+                <span>Installment Analysis</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/overdue_report.php">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <span>Overdue Analysis</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/product_performance_report.php">
+                <i class="bi bi-box-seam me-2"></i>
+                <span>Product Performance</span>
+              </a>
+            </li>
+
+            <!-- Rent Reports -->
+            <li class="nav-item mt-2">
+              <a class="nav-link text-success fw-bold" href="#" onclick="return false;">
+                <i class="bi bi-house-door me-2"></i>
+                <span>Rent Reports</span>
+              </a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_summary_report.php">
                 <i class="bi bi-house-gear me-2"></i>
                 <span>Rent Summary</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/rent_customer_report.php">
+                <i class="bi bi-people me-2"></i>
+                <span>Rent Customer Analysis</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/rent_payment_report.php">
+                <i class="bi bi-credit-card me-2"></i>
+                <span>Rent Payment Tracking</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/rental_profitability_report.php">
+                <i class="bi bi-currency-dollar me-2"></i>
+                <span>Rental Profitability</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="<?= BASE_URL ?>/views/rental_utilization_report.php">
+                <i class="bi bi-calendar-range me-2"></i>
+                <span>Rental Utilization</span>
+              </a>
+            </li>
+
+            <!-- Reports Dashboard -->
+            <li class="nav-item mt-2">
+              <a class="nav-link text-info fw-bold" href="<?= BASE_URL ?>/views/reports_dashboard.php">
+                <i class="bi bi-grid-3x3-gap me-2"></i>
+                <span>All Reports Dashboard</span>
               </a>
             </li>
           </ul>
