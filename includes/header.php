@@ -250,16 +250,21 @@ if (isset($_GET['error'])) {
                 <i class="bi bi-person-fill text-white"></i>
               </div>
               <div class="d-none d-md-block">
-                <span class="fw-medium">Usman</span>
-                <small class="d-block text-white-50">Administrator</small>
+                <span class="fw-medium"><?= htmlspecialchars($_SESSION['username'] ?? 'User') ?></span>
+                <small class="d-block text-white-50">User</small>
               </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
-              <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-question-circle me-2"></i>Help</a></li>
+              <li><h6 class="dropdown-header">Account</h6></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/profile.php"><i class="bi bi-person me-2"></i>My Profile</a></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/change_password.php"><i class="bi bi-key me-2"></i>Change Password</a></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/user_settings.php"><i class="bi bi-gear me-2"></i>Settings</a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+              <li><h6 class="dropdown-header">Support</h6></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/help.php"><i class="bi bi-question-circle me-2"></i>Help & Support</a></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/about.php"><i class="bi bi-info-circle me-2"></i>About</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="<?= BASE_URL ?>/actions/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
             </ul>
           </div>
         </div>

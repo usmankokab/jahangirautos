@@ -2,8 +2,8 @@
 require_once '../config/auth.php';
 
 // Ensure only customers can access this page
-if (!$auth->isLoggedIn() || $_SESSION['user_type'] !== 'customer') {
-    header("Location: " . BASE_URL . "/auth/login.php");
+if (!$auth->isLoggedIn()) {
+    header("Location: " . BASE_URL . "/views/login.php");
     exit();
 }
 
@@ -90,7 +90,7 @@ $overdue_count = array_sum(array_column($sales, 'overdue_installments'));
                 <span class="navbar-text me-3">
                     Welcome, <?= htmlspecialchars($customer['name']) ?>
                 </span>
-                <a href="../auth/login.php?logout=1" class="btn btn-outline-light btn-sm">
+                <a href="../actions/logout.php" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                 </a>
             </div>
