@@ -4,6 +4,14 @@ include '../config/auth.php';
 
 $auth->requireLogin();
 
+// Get current user info and check if admin
+$user_query = "SELECT u.*, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+$stmt = $conn->prepare($user_query);
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$current_user = $stmt->get_result()->fetch_assoc();
+$is_admin = in_array($current_user['role_name'], ['super_admin', 'admin', 'manager']);
+
 // Get current user settings (we'll add a user_settings table later, for now use defaults)
 $user_settings = [
     'theme' => 'light',
@@ -14,29 +22,388 @@ $user_settings = [
     'timezone' => 'Asia/Karachi'
 ];
 
+// Get all available modules
+$modules_query = "SELECT * FROM modules ORDER BY parent_id, module_name";
+$modules_result = $conn->query($modules_query);
+$modules = [];
+while ($module = $modules_result->fetch_assoc()) {
+    $modules[] = $module;
+}
+
+// Get all user roles
+$roles_query = "SELECT * FROM user_roles ORDER BY role_name";
+$roles_result = $conn->query($roles_query);
+$roles = [];
+while ($role = $roles_result->fetch_assoc()) {
+    $roles[] = $role;
+}
+
+// Get existing users for management (filtered by current user's role)
+$users_query = "SELECT u.*, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE 1=1";
+
+// Filter users based on current user's role
+if ($current_user['role_name'] === 'super_admin') {
+    // Super admin can see all users except itself
+    $users_query .= " AND u.id != " . $_SESSION['user_id'];
+} elseif ($current_user['role_name'] === 'admin') {
+    // Admin can see managers, employees, but not super_admin
+    $users_query .= " AND r.role_name IN ('admin', 'manager', 'employee')";
+} elseif ($current_user['role_name'] === 'manager') {
+    // Manager can see employees
+    $users_query .= " AND r.role_name = 'employee'";
+} elseif ($current_user['role_name'] === 'employee') {
+    // Employee cannot see any users
+    $users_query .= " AND 1=0"; // This will return no results
+}
+
+$users_query .= " ORDER BY u.created_at DESC";
+$users_result = $conn->query($users_query);
+$all_users = [];
+while ($user = $users_result->fetch_assoc()) {
+    $all_users[] = $user;
+}
+
 // Handle settings update
 $message = '';
 $message_type = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
-    $theme = $_POST['theme'] ?? 'light';
-    $language = $_POST['language'] ?? 'en';
-    $notifications = $_POST['notifications'] ?? 'enabled';
-    $items_per_page = (int)($_POST['items_per_page'] ?? 20);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['update_settings'])) {
+        $theme = $_POST['theme'] ?? 'light';
+        $language = $_POST['language'] ?? 'en';
+        $notifications = $_POST['notifications'] ?? 'enabled';
+        $items_per_page = (int)($_POST['items_per_page'] ?? 20);
 
-    // For now, we'll store in session (in production, save to database)
-    $_SESSION['user_settings'] = [
-        'theme' => $theme,
-        'language' => $language,
-        'notifications' => $notifications,
-        'items_per_page' => $items_per_page
-    ];
+        // For now, we'll store in session (in production, save to database)
+        $_SESSION['user_settings'] = [
+            'theme' => $theme,
+            'language' => $language,
+            'notifications' => $notifications,
+            'items_per_page' => $items_per_page
+        ];
 
-    $message = 'Settings updated successfully!';
-    $message_type = 'success';
+        $message = 'Settings updated successfully!';
+        $message_type = 'success';
 
-    // Update current settings
-    $user_settings = array_merge($user_settings, $_SESSION['user_settings']);
+        // Update current settings
+        $user_settings = array_merge($user_settings, $_SESSION['user_settings']);
+    }
+
+    // Handle user creation
+    elseif (isset($_POST['create_user']) && $is_admin) {
+        $username = trim($_POST['new_username'] ?? '');
+        $password = $_POST['new_password'] ?? '';
+        $role_id = (int)($_POST['new_role_id'] ?? 0);
+
+        if (empty($username) || empty($password) || $role_id == 0) {
+            $message = 'All fields are required for user creation.';
+            $message_type = 'danger';
+        } else {
+            // Check if username exists
+            $check_stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+            $check_stmt->bind_param("s", $username);
+            $check_stmt->execute();
+
+            if ($check_stmt->get_result()->num_rows > 0) {
+                $message = 'Username already exists.';
+                $message_type = 'danger';
+            } else {
+                // Create user
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $create_stmt = $conn->prepare("INSERT INTO users (username, password, role_id, admin_id) VALUES (?, ?, ?, ?)");
+                $create_stmt->bind_param("ssii", $username, $hashed_password, $role_id, $_SESSION['user_id']);
+
+                if ($create_stmt->execute()) {
+                    $new_user_id = $conn->insert_id;
+
+                    // Set default permissions based on role
+                    if ($role_id == 3) { // manager
+                        $default_permissions = [
+                            ['module_id' => 1, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // dashboard
+                            ['module_id' => 2, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // users
+                            ['module_id' => 3, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // customers
+                            ['module_id' => 4, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // products
+                            ['module_id' => 5, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // sales
+                            ['module_id' => 6, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // rents
+                            ['module_id' => 7, 'can_view' => 1, 'can_add' => 0, 'can_edit' => 0, 'can_delete' => 0], // reports
+                        ];
+                    } elseif ($role_id == 4) { // employee
+                        $default_permissions = [
+                            ['module_id' => 1, 'can_view' => 1, 'can_add' => 0, 'can_edit' => 0, 'can_delete' => 0], // dashboard
+                            ['module_id' => 3, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // customers
+                            ['module_id' => 4, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // products
+                            ['module_id' => 5, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 0], // sales
+                        ];
+                    } else { // admin/super_admin
+                        $default_permissions = [
+                            ['module_id' => 1, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // dashboard
+                            ['module_id' => 2, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // users
+                            ['module_id' => 3, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // customers
+                            ['module_id' => 4, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // products
+                            ['module_id' => 5, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // sales
+                            ['module_id' => 6, 'can_view' => 1, 'can_add' => 1, 'can_edit' => 1, 'can_delete' => 1], // rents
+                            ['module_id' => 7, 'can_view' => 1, 'can_add' => 0, 'can_edit' => 0, 'can_delete' => 0], // reports
+                        ];
+                    }
+
+                    // Insert default permissions
+                    foreach ($default_permissions as $perm) {
+                        $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $perm_stmt->bind_param("iiiiiii", $new_user_id, $perm['module_id'], $perm['can_view'], $perm['can_add'], $perm['can_edit'], $perm['can_delete'], $_SESSION['user_id']);
+                        $perm_stmt->execute();
+                    }
+
+                    $message = 'User created successfully!';
+                    $message_type = 'success';
+
+                    // Refresh users list
+                    $users_result = $conn->query($users_query);
+                    $all_users = [];
+                    while ($user = $users_result->fetch_assoc()) {
+                        $all_users[] = $user;
+                    }
+                } else {
+                    $message = 'Failed to create user. Please try again.';
+                    $message_type = 'danger';
+                }
+            }
+        }
+    }
+
+    // Handle permission updates
+    elseif (isset($_POST['update_permissions']) && $is_admin) {
+        $user_id = (int)($_POST['user_id'] ?? 0);
+        $permissions = $_POST['permissions'] ?? [];
+
+        if ($user_id > 0) {
+            // Check if current user can manage the target user's permissions
+            $target_user_query = "SELECT r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+            $target_stmt = $conn->prepare($target_user_query);
+            $target_stmt->bind_param("i", $user_id);
+            $target_stmt->execute();
+            $target_user = $target_stmt->get_result()->fetch_assoc();
+
+            if ($target_user) {
+                $can_manage = false;
+                if ($current_user['role_name'] === 'super_admin') {
+                    $can_manage = true; // Super admin can manage all
+                } elseif ($current_user['role_name'] === 'admin') {
+                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                } elseif ($current_user['role_name'] === 'manager') {
+                    $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
+                }
+
+                if ($can_manage) {
+                    // Delete existing permissions
+                    $delete_stmt = $conn->prepare("DELETE FROM user_permissions WHERE user_id = ?");
+                    $delete_stmt->bind_param("i", $user_id);
+                    $delete_stmt->execute();
+
+                    // Insert new permissions
+                    foreach ($permissions as $module_id => $perms) {
+                        $can_view = isset($perms['view']) ? 1 : 0;
+                        $can_add = isset($perms['add']) ? 1 : 0;
+                        $can_edit = isset($perms['edit']) ? 1 : 0;
+                        $can_delete = isset($perms['delete']) ? 1 : 0;
+
+                        $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $perm_stmt->bind_param("iiiiiii", $user_id, $module_id, $can_view, $can_add, $can_edit, $can_delete, $_SESSION['user_id']);
+                        $perm_stmt->execute();
+                    }
+
+                    $message = 'Permissions updated successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'You do not have permission to manage this user.';
+                    $message_type = 'danger';
+                }
+            } else {
+                $message = 'User not found.';
+                $message_type = 'danger';
+            }
+        }
+    }
+
+    // Handle password change
+    elseif (isset($_POST['change_password']) && $is_admin) {
+        $user_id = (int)($_POST['password_user_id'] ?? 0);
+        $new_password = $_POST['new_user_password'] ?? '';
+        $confirm_password = $_POST['confirm_new_password'] ?? '';
+
+        if ($user_id > 0) {
+            // Check if current user can manage the target user's password
+            $target_user_query = "SELECT r.role_name, u.username FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+            $target_stmt = $conn->prepare($target_user_query);
+            $target_stmt->bind_param("i", $user_id);
+            $target_stmt->execute();
+            $target_user = $target_stmt->get_result()->fetch_assoc();
+
+            if ($target_user) {
+                $can_manage = false;
+                if ($current_user['role_name'] === 'super_admin') {
+                    $can_manage = true; // Super admin can manage all
+                } elseif ($current_user['role_name'] === 'admin') {
+                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                } elseif ($current_user['role_name'] === 'manager') {
+                    $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
+                }
+
+                if ($can_manage) {
+                    // Validate password
+                    if (empty($new_password)) {
+                        $message = 'Password cannot be empty.';
+                        $message_type = 'danger';
+                    } elseif (strlen($new_password) < 6) {
+                        $message = 'Password must be at least 6 characters long.';
+                        $message_type = 'danger';
+                    } elseif ($new_password !== $confirm_password) {
+                        $message = 'Passwords do not match.';
+                        $message_type = 'danger';
+                    } else {
+                        // Hash the new password
+                        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+
+                        // Update password
+                        $password_stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                        $password_stmt->bind_param("si", $hashed_password, $user_id);
+
+                        if ($password_stmt->execute()) {
+                            $message = "Password changed successfully for user '{$target_user['username']}'!";
+                            $message_type = 'success';
+                        } else {
+                            $message = 'Failed to change password. Please try again.';
+                            $message_type = 'danger';
+                        }
+                    }
+                } else {
+                    $message = 'You do not have permission to change this user\'s password.';
+                    $message_type = 'danger';
+                }
+            } else {
+                $message = 'User not found.';
+                $message_type = 'danger';
+            }
+        }
+    }
+
+    // Handle user status toggle
+    elseif (isset($_POST['toggle_user_status']) && $is_admin) {
+        $user_id = (int)($_POST['user_id'] ?? 0);
+        $new_status = (int)($_POST['new_status'] ?? 0);
+
+        if ($user_id > 0) {
+            // Check if current user can manage the target user's status
+            $target_user_query = "SELECT r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+            $target_stmt = $conn->prepare($target_user_query);
+            $target_stmt->bind_param("i", $user_id);
+            $target_stmt->execute();
+            $target_user = $target_stmt->get_result()->fetch_assoc();
+
+            if ($target_user) {
+                $can_manage = false;
+                if ($current_user['role_name'] === 'super_admin') {
+                    $can_manage = true; // Super admin can manage all
+                } elseif ($current_user['role_name'] === 'admin') {
+                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                } elseif ($current_user['role_name'] === 'manager') {
+                    $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
+                }
+
+                if ($can_manage) {
+                    // Prevent deactivating the current user themselves
+                    if ($user_id == $_SESSION['user_id']) {
+                        $message = 'You cannot deactivate your own account.';
+                        $message_type = 'warning';
+                    } else {
+                        // Update user status
+                        $status_stmt = $conn->prepare("UPDATE users SET is_active = ? WHERE id = ?");
+                        $status_stmt->bind_param("ii", $new_status, $user_id);
+
+                        if ($status_stmt->execute()) {
+                            $action = $new_status ? 'activated' : 'deactivated';
+                            $message = "User has been {$action} successfully!";
+                            $message_type = 'success';
+
+                            // Refresh users list
+                            $users_result = $conn->query($users_query);
+                            $all_users = [];
+                            while ($user = $users_result->fetch_assoc()) {
+                                $all_users[] = $user;
+                            }
+                        } else {
+                            $message = 'Failed to update user status. Please try again.';
+                            $message_type = 'danger';
+                        }
+                    }
+                } else {
+                    $message = 'You do not have permission to manage this user.';
+                    $message_type = 'danger';
+                }
+            } else {
+                $message = 'User not found.';
+                $message_type = 'danger';
+            }
+        }
+    }
+
+    // Handle user deletion (Super Admin only)
+    elseif (isset($_POST['delete_user']) && $current_user['role_name'] === 'super_admin') {
+        $user_id = (int)($_POST['delete_user_id'] ?? 0);
+
+        if ($user_id > 0) {
+            // Prevent self-deletion
+            if ($user_id == $_SESSION['user_id']) {
+                $message = 'You cannot delete your own account.';
+                $message_type = 'danger';
+            } else {
+                // Get user details for confirmation
+                $target_user_query = "SELECT u.username, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+                $target_stmt = $conn->prepare($target_user_query);
+                $target_stmt->bind_param("i", $user_id);
+                $target_stmt->execute();
+                $target_user = $target_stmt->get_result()->fetch_assoc();
+
+                if ($target_user) {
+                    try {
+                        // Start transaction for safe deletion
+                        $conn->begin_transaction();
+
+                        // Delete user permissions first (foreign key constraint)
+                        $delete_perms_stmt = $conn->prepare("DELETE FROM user_permissions WHERE user_id = ?");
+                        $delete_perms_stmt->bind_param("i", $user_id);
+                        $delete_perms_stmt->execute();
+
+                        // Delete user (this will cascade to related tables if set up)
+                        $delete_user_stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                        $delete_user_stmt->bind_param("i", $user_id);
+                        $delete_user_stmt->execute();
+
+                        // Commit transaction
+                        $conn->commit();
+
+                        $message = "User '{$target_user['username']}' has been permanently deleted!";
+                        $message_type = 'success';
+
+                        // Refresh users list
+                        $users_result = $conn->query($users_query);
+                        $all_users = [];
+                        while ($user = $users_result->fetch_assoc()) {
+                            $all_users[] = $user;
+                        }
+
+                    } catch (Exception $e) {
+                        // Rollback transaction on error
+                        $conn->rollback();
+                        $message = 'Failed to delete user. Please try again. Error: ' . $e->getMessage();
+                        $message_type = 'danger';
+                    }
+                } else {
+                    $message = 'User not found.';
+                    $message_type = 'danger';
+                }
+            }
+        }
+    }
 }
 
 include '../includes/header.php';
@@ -64,6 +431,139 @@ include '../includes/header.php';
             <?php endif; ?>
 
             <div class="row">
+                <!-- User Management (Admin Only) -->
+                <?php if ($is_admin): ?>
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>User Management</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Create New User -->
+                            <div class="row mb-4">
+                                <div class="col-lg-6">
+                                    <h6 class="mb-3"><i class="bi bi-person-plus me-2"></i>Create New User</h6>
+                                    <form method="POST" action="">
+                                        <input type="hidden" name="create_user" value="1">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="new_username" class="form-label">Username *</label>
+                                                <input type="text" class="form-control" id="new_username" name="new_username" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="new_password" class="form-label">Password *</label>
+                                                <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="new_role_id" class="form-label">Role *</label>
+                                                <select class="form-select" id="new_role_id" name="new_role_id" required>
+                                                    <option value="">Select Role</option>
+                                                    <?php
+                                                    $allowed_roles = [];
+                                                    if ($current_user['role_name'] === 'super_admin') {
+                                                        $allowed_roles = ['admin', 'manager'];
+                                                    } elseif ($current_user['role_name'] === 'admin') {
+                                                        $allowed_roles = ['manager', 'employee'];
+                                                    } elseif ($current_user['role_name'] === 'manager') {
+                                                        $allowed_roles = ['employee'];
+                                                    }
+
+                                                    foreach ($roles as $role):
+                                                        if (in_array($role['role_name'], $allowed_roles)):
+                                                    ?>
+                                                        <option value="<?= $role['id'] ?>"><?= htmlspecialchars($role['role_name']) ?></option>
+                                                    <?php
+                                                        endif;
+                                                    endforeach;
+                                                    ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button type="submit" class="btn btn-success w-100">
+                                                    <i class="bi bi-person-plus me-2"></i>Create User
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <!-- Existing Users -->
+                                <div class="col-lg-6">
+                                    <h6 class="mb-3"><i class="bi bi-list-ul me-2"></i>Existing Users</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Username</th>
+                                                    <th>Role</th>
+                                                    <th>Status</th>
+                                                    <th>Created</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($all_users as $user):
+                                                    // Determine if current user can manage this user's permissions
+                                                    $can_manage = false;
+                                                    if ($current_user['role_name'] === 'super_admin') {
+                                                        $can_manage = true; // Super admin can manage all
+                                                    } elseif ($current_user['role_name'] === 'admin') {
+                                                        $can_manage = !in_array($user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                                                    } elseif ($current_user['role_name'] === 'manager') {
+                                                        $can_manage = $user['role_name'] === 'employee'; // Manager can only manage employees
+                                                    }
+                                                ?>
+                                                <tr>
+                                                    <td><?= htmlspecialchars($user['username']) ?></td>
+                                                    <td>
+                                                        <span class="badge bg-<?= $user['role_name'] === 'super_admin' ? 'danger' : ($user['role_name'] === 'admin' ? 'warning' : ($user['role_name'] === 'manager' ? 'success' : ($user['role_name'] === 'employee' ? 'info' : 'secondary'))) ?>">
+                                                            <?= htmlspecialchars($user['role_name']) ?>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-<?= $user['is_active'] ? 'success' : 'danger' ?> status-badge" id="status-badge-<?= $user['id'] ?>">
+                                                            <i class="bi bi-<?= $user['is_active'] ? 'check-circle' : 'x-circle' ?> me-1"></i>
+                                                            <?= $user['is_active'] ? 'Active' : 'Inactive' ?>
+                                                        </span>
+                                                    </td>
+                                                    <td><?= date('M d, Y', strtotime($user['created_at'])) ?></td>
+                                                    <td>
+                                                        <?php if ($can_manage): ?>
+                                                            <div class="d-flex gap-1" role="group">
+                                                                <button class="btn btn-sm btn-outline-primary" onclick="editPermissions(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Edit Permissions">
+                                                                    <i class="bi bi-gear"></i>
+                                                                </button>
+                                                                <button class="btn btn-sm btn-outline-secondary" onclick="changePassword(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Change Password">
+                                                                    <i class="bi bi-key"></i>
+                                                                </button>
+                                                                <button class="btn btn-sm <?= $user['is_active'] ? 'btn-outline-warning' : 'btn-outline-success' ?>"
+                                                                        onclick="toggleUserStatus(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>', <?= $user['is_active'] ? 1 : 0 ?>)"
+                                                                        title="<?= $user['is_active'] ? 'Deactivate User' : 'Activate User' ?>">
+                                                                    <i class="bi bi-<?= $user['is_active'] ? 'person-dash' : 'person-check' ?>"></i>
+                                                                </button>
+                                                                <?php if ($current_user['role_name'] === 'super_admin' && $user['id'] != $_SESSION['user_id']): ?>
+                                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Delete User">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php else: ?>
+                                                            <span class="text-muted small">Cannot manage</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- General Settings -->
                 <div class="col-lg-8 mb-4">
                     <div class="card">
@@ -255,6 +755,323 @@ include '../includes/header.php';
     </div>
 </div>
 
+<!-- Change Password Modal -->
+<?php if ($is_admin): ?>
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">Change Password - <span id="passwordUserName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="change_password" value="1">
+                <input type="hidden" name="password_user_id" id="passwordUserId" value="">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_user_password" class="form-label">New Password *</label>
+                        <input type="password" class="form-control" id="new_user_password" name="new_user_password" required>
+                        <div class="form-text">Enter a strong password for the user</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_new_password" class="form-label">Confirm New Password *</label>
+                        <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" required>
+                        <div class="form-text">Re-enter the password to confirm</div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This will change the user's password. They will need to use the new password to log in.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Change Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Permissions Management Modal -->
+<?php if ($is_admin): ?>
+<div class="modal fade permissions-modal" id="permissionsModal" tabindex="-1" aria-labelledby="permissionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="permissionsModalLabel">
+                    <i class="bi bi-shield-lock me-2"></i>Manage Permissions - <span id="userName"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="update_permissions" value="1">
+                <input type="hidden" name="user_id" id="modalUserId" value="">
+                <div class="modal-body">
+                    <!-- Quick Actions Bar -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <h6 class="mb-0 text-primary">
+                                        <i class="bi bi-lightning-charge me-2"></i>Quick Actions
+                                    </h6>
+                                    <small class="text-muted">Set common permission presets</small>
+                                </div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-success" onclick="setRolePermissions('manager')" title="Set Manager Permissions">
+                                        <i class="bi bi-person-badge me-1"></i>Manager
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info" onclick="setRolePermissions('employee')" title="Set Employee Permissions">
+                                        <i class="bi bi-person me-1"></i>Employee
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" onclick="setRolePermissions('viewer')" title="Set View-Only Permissions">
+                                        <i class="bi bi-eye me-1"></i>Viewer
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="clearAllPermissions()" title="Clear All Permissions">
+                                        <i class="bi bi-x-circle me-1"></i>Clear All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Core System Modules -->
+                        <div class="col-md-6">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-gear me-2"></i>Core System Modules
+                                    </h6>
+                                    <small>Essential system functionality</small>
+                                </div>
+                                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                                    <?php
+                                    // Get only core modules (no parent_id and not reports, excluding specific report modules)
+                                    $core_modules = array_filter($modules, function($module) {
+                                        return is_null($module['parent_id']) &&
+                                               $module['module_name'] !== 'reports' &&
+                                               $module['module_name'] !== 'customer_performance' &&
+                                               $module['module_name'] !== 'installment_analysis' &&
+                                               $module['module_name'] !== 'rent_summary' &&
+                                               $module['module_name'] !== 'sales_summary';
+                                    });
+
+                                    foreach ($core_modules as $module):
+                                        $module_icon = '';
+                                        $module_color = 'primary';
+                                        switch($module['module_name']) {
+                                            case 'dashboard': $module_icon = 'bi-speedometer2'; $module_color = 'primary'; break;
+                                            case 'users': $module_icon = 'bi-people'; $module_color = 'success'; break;
+                                            case 'customers': $module_icon = 'bi-person-check'; $module_color = 'info'; break;
+                                            case 'products': $module_icon = 'bi-box-seam'; $module_color = 'warning'; break;
+                                            case 'sales': $module_icon = 'bi-receipt'; $module_color = 'danger'; break;
+                                            case 'rents': $module_icon = 'bi-calendar-event'; $module_color = 'secondary'; break;
+                                            default: $module_icon = 'bi-circle'; $module_color = 'primary';
+                                        }
+                                    ?>
+                                    <div class="card mb-3 border-<?= $module_color ?> shadow-sm">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="bg-<?= $module_color ?> text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                        <i class="bi <?= $module_icon ?> fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0 text-capitalize fw-bold"><?= htmlspecialchars($module['module_name']) ?></h6>
+                                                        <small class="text-muted">System module</small>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="view_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][view]" onchange="toggleModulePermissions(<?= $module['id'] ?>, this.checked)">
+                                                    <label class="form-check-label fw-bold" for="view_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow viewing this module">
+                                                        <i class="bi bi-eye me-1"></i>View
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-2">
+                                                <div class="col-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="add_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][add]">
+                                                        <label class="form-check-label small" for="add_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow creating new records">
+                                                            <i class="bi bi-plus-circle text-success me-1"></i>Add
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="edit_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][edit]">
+                                                        <label class="form-check-label small" for="edit_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow editing existing records">
+                                                            <i class="bi bi-pencil text-warning me-1"></i>Edit
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="delete_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][delete]">
+                                                        <label class="form-check-label small" for="delete_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow deleting records">
+                                                            <i class="bi bi-trash text-danger me-1"></i>Delete
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm me-1" onclick="selectAllPermissions(<?= $module['id'] ?>)">
+                                                    <i class="bi bi-check-all me-1"></i>All
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm me-1" onclick="selectViewOnlyPermissions(<?= $module['id'] ?>)">
+                                                    <i class="bi bi-eye me-1"></i>View Only
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm" onclick="clearModulePermissions(<?= $module['id'] ?>)">
+                                                    <i class="bi bi-x me-1"></i>Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reports & Analytics -->
+                        <div class="col-md-6">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-bar-chart-line me-2"></i>Reports & Analytics
+                                    </h6>
+                                    <small>Access to reporting and analytical tools</small>
+                                </div>
+                                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                                    <?php
+                                    // Get reports module and its submodules
+                                    $reports_module = array_filter($modules, function($module) {
+                                        return $module['module_name'] === 'reports';
+                                    });
+                                    $reports_module = reset($reports_module);
+
+                                    if ($reports_module):
+                                        $report_submodules = array_filter($modules, function($module) use ($reports_module) {
+                                            return $module['parent_id'] == $reports_module['id'];
+                                        });
+                                    ?>
+                                    <!-- Reports Dashboard Access -->
+                                    <div class="card mb-3 border-success shadow-sm">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                                        <i class="bi bi-graph-up fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0 fw-bold">Reports Dashboard</h6>
+                                                        <small class="text-muted">Main reports hub</small>
+                                                    </div>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="view_<?= $reports_module['id'] ?>" name="permissions[<?= $reports_module['id'] ?>][view]">
+                                                    <label class="form-check-label fw-bold" for="view_<?= $reports_module['id'] ?>" data-bs-toggle="tooltip" title="Access reports dashboard">
+                                                        <i class="bi bi-eye me-1"></i>Access
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Individual Reports -->
+                                    <div class="mb-3">
+                                        <h6 class="text-success mb-3">
+                                            <i class="bi bi-file-earmark-bar-graph me-2"></i>Individual Reports
+                                        </h6>
+                                        <?php foreach ($report_submodules as $report):
+                                            $report_icon = '';
+                                            $report_color = 'success';
+                                            switch($report['module_name']) {
+                                                case 'sales_summary_report': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
+                                                case 'customer_performance_report': $report_icon = 'bi-people'; $report_color = 'info'; break;
+                                                case 'installment_analysis_report': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
+                                                case 'rent_summary_report': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
+                                                case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
+                                                default: $report_icon = 'bi-file-earmark-text'; $report_color = 'success';
+                                            }
+                                        ?>
+                                        <div class="card mb-2 border-<?= $report_color ?> shadow-sm">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-<?= $report_color ?> text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px;">
+                                                            <i class="bi <?= $report_icon ?>"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h6 class="mb-0 small fw-bold">
+                                                                <?= htmlspecialchars(str_replace('_', ' ', $report['module_name'])) ?>
+                                                            </h6>
+                                                            <small class="text-muted">Report access</small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="view_<?= $report['id'] ?>" name="permissions[<?= $report['id'] ?>][view]">
+                                                        <label class="form-check-label" for="view_<?= $report['id'] ?>" data-bs-toggle="tooltip" title="View this report">
+                                                            <i class="bi bi-eye me-1"></i>View
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <!-- Summary Section -->
+                                    <div class="alert alert-info mt-3">
+                                        <h6 class="alert-heading mb-2">
+                                            <i class="bi bi-info-circle me-2"></i>Permission Summary
+                                        </h6>
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <div class="fw-bold text-primary" id="totalModules">0</div>
+                                                <small>Modules</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-success" id="totalReports">0</div>
+                                                <small>Reports</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="fw-bold text-warning" id="totalPermissions">0</div>
+                                                <small>Permissions</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <div class="d-flex justify-content-between w-100">
+                        <div class="text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Changes will take effect immediately after saving
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
+                                <i class="bi bi-x me-1"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Update Permissions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 function resetSettings() {
     if (confirm('Are you sure you want to reset all settings to default?')) {
@@ -279,6 +1096,213 @@ function privacySettings() {
     alert('Privacy settings panel will be available in a future update.');
 }
 
+// User Management Functions
+function editPermissions(userId, username) {
+    document.getElementById('modalUserId').value = userId;
+    document.getElementById('userName').textContent = username;
+
+    // Fetch current permissions
+    fetch('<?= BASE_URL ?>/actions/get_user_permissions.php?user_id=' + userId)
+        .then(response => response.json())
+        .then(data => {
+            // Reset all checkboxes and disable module permissions
+            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
+                cb.disabled = true;
+            });
+
+            // Set permissions based on data
+            data.forEach(perm => {
+                if (perm.can_view) {
+                    document.getElementById('view_' + perm.module_id).checked = true;
+                    // Enable module permissions if view is checked
+                    const modulePermissions = document.querySelectorAll(`.module-perm-${perm.module_id}`);
+                    modulePermissions.forEach(cb => {
+                        cb.disabled = false;
+                    });
+                }
+                if (perm.can_add) document.getElementById('add_' + perm.module_id).checked = true;
+                if (perm.can_edit) document.getElementById('edit_' + perm.module_id).checked = true;
+                if (perm.can_delete) document.getElementById('delete_' + perm.module_id).checked = true;
+            });
+
+            // Update permission summary
+            updatePermissionSummary();
+
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Show modal
+            new bootstrap.Modal(document.getElementById('permissionsModal')).show();
+        })
+        .catch(error => {
+            console.error('Error loading permissions:', error);
+            alert('Error loading user permissions. Please try again.');
+        });
+}
+
+function toggleModulePermissions(moduleId, isChecked) {
+    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+    modulePermissions.forEach(cb => {
+        cb.checked = isChecked;
+        cb.disabled = !isChecked;
+    });
+    updatePermissionSummary();
+}
+
+function selectAllPermissions(moduleId) {
+    document.getElementById(`view_${moduleId}`).checked = true;
+    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+    modulePermissions.forEach(cb => {
+        cb.checked = true;
+        cb.disabled = false;
+    });
+    updatePermissionSummary();
+}
+
+function selectViewOnlyPermissions(moduleId) {
+    document.getElementById(`view_${moduleId}`).checked = true;
+    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+    modulePermissions.forEach(cb => {
+        cb.checked = false;
+        cb.disabled = false;
+    });
+    updatePermissionSummary();
+}
+
+function clearModulePermissions(moduleId) {
+    document.getElementById(`view_${moduleId}`).checked = false;
+    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+    modulePermissions.forEach(cb => {
+        cb.checked = false;
+        cb.disabled = true;
+    });
+    updatePermissionSummary();
+}
+
+function clearAllPermissions() {
+    if (confirm('Are you sure you want to clear all permissions?')) {
+        // Clear all checkboxes
+        document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+
+        // Disable all module permissions
+        document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
+            cb.disabled = true;
+        });
+
+        updatePermissionSummary();
+    }
+}
+
+function updatePermissionSummary() {
+    const totalModules = document.querySelectorAll('#permissionsModal .col-md-6:first-child .card').length;
+    const totalReports = document.querySelectorAll('#permissionsModal .col-md-6:last-child .card').length - 1; // Subtract 1 for the summary alert
+    const totalPermissions = document.querySelectorAll('#permissionsModal input[type="checkbox"]:checked').length;
+
+    document.getElementById('totalModules').textContent = totalModules;
+    document.getElementById('totalReports').textContent = totalReports;
+    document.getElementById('totalPermissions').textContent = totalPermissions;
+}
+
+function setRolePermissions(role) {
+    // Reset all checkboxes and disable module permissions
+    document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
+        cb.disabled = true;
+    });
+
+    // Set permissions based on role
+    switch(role) {
+        case 'super_admin':
+            // All permissions for all modules
+            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+                if (cb.classList.contains('module-perm-')) {
+                    cb.disabled = false;
+                }
+            });
+            break;
+
+        case 'admin':
+            // Most permissions except user management
+            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
+                if (!cb.id.includes('_2')) { // Skip user management module
+                    cb.checked = true;
+                    if (cb.classList.contains('module-perm-')) {
+                        cb.disabled = false;
+                    }
+                }
+            });
+            break;
+
+        case 'manager':
+            // Manager permissions - between admin and employee
+            const managerPermissions = [
+                'view_1', 'add_1', 'edit_1',  // Dashboard
+                'view_3', 'add_3', 'edit_3', 'delete_3',  // Customers
+                'view_4', 'add_4', 'edit_4', 'delete_4',  // Products
+                'view_5', 'add_5', 'edit_5', 'delete_5',  // Sales
+                'view_6', 'add_6', 'edit_6',  // Rents
+                'view_7'  // Reports
+            ];
+            managerPermissions.forEach(id => {
+                const cb = document.getElementById(id);
+                if (cb) {
+                    cb.checked = true;
+                    if (cb.classList.contains('module-perm-')) {
+                        cb.disabled = false;
+                    }
+                }
+            });
+            break;
+
+        case 'employee':
+            // Limited permissions - view and basic operations
+            const employeePermissions = [
+                'view_1',  // Dashboard
+                'view_3', 'add_3', 'edit_3',  // Customers
+                'view_4', 'add_4', 'edit_4',  // Products
+                'view_5', 'add_5', 'edit_5'   // Sales
+            ];
+            employeePermissions.forEach(id => {
+                const cb = document.getElementById(id);
+                if (cb) {
+                    cb.checked = true;
+                    if (cb.classList.contains('module-perm-')) {
+                        cb.disabled = false;
+                    }
+                }
+            });
+            break;
+
+        case 'viewer':
+            // View-only permissions for all modules
+            document.querySelectorAll('#permissionsModal input[id^="view_"]').forEach(cb => {
+                cb.checked = true;
+                // Enable the module permissions but don't check them
+                const moduleId = cb.id.split('_')[1];
+                const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+                modulePermissions.forEach(permCb => {
+                    permCb.disabled = false;
+                    permCb.checked = false;
+                });
+            });
+            break;
+    }
+
+    // Update permission summary
+    updatePermissionSummary();
+}
+
 // Apply theme immediately when changed
 document.getElementById('theme').addEventListener('change', function() {
     const theme = this.value;
@@ -288,9 +1312,231 @@ document.getElementById('theme').addEventListener('change', function() {
         document.body.classList.remove('dark-theme');
     }
 });
+
+// Password strength indicator
+document.getElementById('new_password')?.addEventListener('input', function() {
+    const password = this.value;
+    const strength = calculatePasswordStrength(password);
+
+    // Remove existing classes
+    this.classList.remove('is-valid', 'is-invalid');
+
+    if (password.length > 0) {
+        if (strength >= 3) {
+            this.classList.add('is-valid');
+        } else {
+            this.classList.add('is-invalid');
+        }
+    }
+});
+
+function calculatePasswordStrength(password) {
+    let strength = 0;
+    if (password.length >= 6) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^A-Za-z0-9]/.test(password)) strength++;
+    return strength;
+}
+
+// User Status Toggle Function
+function toggleUserStatus(userId, username, currentStatus) {
+    const newStatus = currentStatus ? 0 : 1;
+    const action = newStatus ? 'activate' : 'deactivate';
+    const confirmMessage = `Are you sure you want to ${action} the user "${username}"?`;
+
+    if (confirm(confirmMessage)) {
+        // Create a form to submit the toggle request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.style.display = 'none';
+
+        // Add form fields
+        const fields = {
+            'toggle_user_status': '1',
+            'user_id': userId.toString(),
+            'new_status': newStatus.toString()
+        };
+
+        for (const [name, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        }
+
+        // Add form to body and submit
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Change Password Function
+function changePassword(userId, username) {
+    document.getElementById('passwordUserId').value = userId;
+    document.getElementById('passwordUserName').textContent = username;
+
+    // Clear form fields
+    document.getElementById('new_user_password').value = '';
+    document.getElementById('confirm_new_password').value = '';
+
+    // Show modal
+    new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+}
+
+// Password Confirmation Validation
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmPasswordField = document.getElementById('confirm_new_password');
+    if (confirmPasswordField) {
+        confirmPasswordField.addEventListener('input', function() {
+            const password = document.getElementById('new_user_password').value;
+            const confirmPassword = this.value;
+
+            // Remove existing validation classes
+            this.classList.remove('is-valid', 'is-invalid');
+
+            if (confirmPassword && password !== confirmPassword) {
+                this.classList.add('is-invalid');
+            } else if (confirmPassword && password === confirmPassword) {
+                this.classList.add('is-valid');
+            }
+        });
+    }
+});
+
+// Delete User Function
+function deleteUser(userId, username) {
+    const confirmMessage = `⚠️ WARNING: This action cannot be undone!\n\nAre you sure you want to permanently delete the user "${username}"?\n\nThis will:\n• Delete all user data\n• Remove all permissions\n• Delete associated records\n• Make the username available for new users`;
+
+    if (confirm(confirmMessage)) {
+        // Additional confirmation for safety
+        const finalConfirm = prompt(`To confirm deletion of "${username}", please type "DELETE" below:`);
+
+        if (finalConfirm === 'DELETE') {
+            // Create a form to submit the delete request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.style.display = 'none';
+
+            // Add form fields
+            const fields = {
+                'delete_user': '1',
+                'delete_user_id': userId.toString()
+            };
+
+            for (const [name, value] of Object.entries(fields)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+
+            // Add form to body and submit
+            document.body.appendChild(form);
+            form.submit();
+        } else {
+            alert('Deletion cancelled. Please type "DELETE" to confirm.');
+        }
+    }
+}
 </script>
 
 <style>
+/* Interactive Permissions Modal Styles */
+.permissions-modal .card {
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.permissions-modal .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.permissions-modal .module-icon {
+    transition: transform 0.2s ease;
+}
+
+.permissions-modal .card:hover .module-icon {
+    transform: scale(1.1);
+}
+
+.permissions-modal .form-check-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.permissions-modal .btn-group .btn {
+    border-radius: 0.375rem !important;
+    margin: 0 2px;
+}
+
+.permissions-modal .btn-group .btn:first-child {
+    margin-left: 0;
+}
+
+.permissions-modal .btn-group .btn:last-child {
+    margin-right: 0;
+}
+
+.permissions-modal .permission-summary {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+/* Quick action buttons styling */
+.permissions-modal .quick-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.permissions-modal .quick-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Module permission cards */
+.permissions-modal .module-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.permissions-modal .module-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--bs-primary), var(--bs-primary-rgb));
+    opacity: 0.7;
+}
+
+.permissions-modal .module-card.primary::before {
+    background: linear-gradient(to bottom, var(--bs-primary), #0056b3);
+}
+
+.permissions-modal .module-card.success::before {
+    background: linear-gradient(to bottom, var(--bs-success), #1e7e34);
+}
+
+.permissions-modal .module-card.info::before {
+    background: linear-gradient(to bottom, var(--bs-info), #117a8b);
+}
+
+.permissions-modal .module-card.warning::before {
+    background: linear-gradient(to bottom, var(--bs-warning), #d39e00);
+}
+
+.permissions-modal .module-card.danger::before {
+    background: linear-gradient(to bottom, var(--bs-danger), #bd2130);
+}
+
+/* Dark theme support */
 .dark-theme {
     background-color: #1a1a1a !important;
     color: #ffffff !important;
@@ -314,6 +1560,64 @@ document.getElementById('theme').addEventListener('change', function() {
     background-color: #3d3d3d !important;
     border-color: #007bff !important;
     color: #ffffff !important;
+}
+
+.dark-theme .permissions-modal .permission-summary {
+    background: linear-gradient(45deg, #2d2d2d, #404040);
+    color: #ffffff;
+}
+
+.dark-theme .permissions-modal .card {
+    background-color: #2d2d2d !important;
+    border-color: #404040 !important;
+}
+
+.dark-theme .permissions-modal .card-header {
+    background-color: #404040 !important;
+    border-color: #505050 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .permissions-modal .btn-group {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .permissions-modal .btn-group .btn {
+        margin: 0 !important;
+    }
+
+    .permissions-modal .modal-dialog {
+        margin: 0.5rem;
+    }
+}
+
+/* Animation for permission changes */
+@keyframes permissionChange {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.permissions-modal .form-check-input:checked {
+    animation: permissionChange 0.3s ease;
+}
+
+/* Tooltip styling */
+.tooltip-inner {
+    background-color: #333;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: #333;
+}
+
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+    border-bottom-color: #333;
 }
 </style>
 

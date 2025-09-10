@@ -52,8 +52,8 @@ CREATE TABLE user_permissions (
 INSERT INTO user_roles (role_name, description) VALUES
 ('super_admin', 'Super Administrator with full system access'),
 ('admin', 'Administrator with limited system access'),
-('employee', 'Regular employee user'),
-('customer', 'Customer account');
+('manager', 'Manager with supervisory access'),
+('employee', 'Regular employee user');
 
 -- Insert default modules
 INSERT INTO modules (module_name, description) VALUES
