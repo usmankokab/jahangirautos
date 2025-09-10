@@ -1,5 +1,9 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
 include '../includes/header.php';
 
 $sale_id = (int)$_GET['sale_id'];

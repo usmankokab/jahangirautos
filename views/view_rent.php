@@ -1,5 +1,9 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
 include '../includes/header.php';
 
 $rent_id = (int)$_GET['rent_id'];

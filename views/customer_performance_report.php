@@ -1,5 +1,9 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
 include '../includes/header.php';
 
 // Get filter parameters
@@ -23,7 +27,7 @@ $where_clause = implode(" AND ", $where_conditions);
 
 // Customer performance analysis
 $customer_performance_query = "
-    SELECT 
+    SELECT
         c.id,
         c.name,
         c.phone,
@@ -46,13 +50,13 @@ $customer_performance_query = "
     LEFT JOIN installments i ON s.id = i.sale_id
     GROUP BY c.id, c.name, c.phone, c.cnic
     HAVING total_purchases > 0
-    ORDER BY 
-        CASE 
-            WHEN ? = 'total_spent' THEN total_spent
-            WHEN ? = 'payment_rate' THEN payment_rate
-            WHEN ? = 'total_purchases' THEN total_purchases
-            WHEN ? = 'overdue_installments' THEN overdue_installments
-            ELSE total_spent
+    ORDER BY
+        CASE
+            WHEN ? = 'total_spent' THEN SUM(s.total_amount)
+            WHEN ? = 'payment_rate' THEN ROUND((SUM(i.paid_amount) / NULLIF(SUM(i.amount), 0)) * 100, 2)
+            WHEN ? = 'total_purchases' THEN COUNT(DISTINCT s.id)
+            WHEN ? = 'overdue_installments' THEN COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END)
+            ELSE SUM(s.total_amount)
         END DESC
 ";
 
@@ -63,8 +67,8 @@ $customer_performance = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Customer segmentation
 $segmentation_query = "
-    SELECT 
-        CASE 
+    SELECT
+        CASE
             WHEN total_spent >= 500000 THEN 'Premium (₨500K+)'
             WHEN total_spent >= 200000 THEN 'High Value (₨200K-500K)'
             WHEN total_spent >= 100000 THEN 'Medium Value (₨100K-200K)'
@@ -75,7 +79,7 @@ $segmentation_query = "
         SUM(total_spent) as segment_revenue,
         AVG(payment_rate) as avg_payment_rate
     FROM (
-        SELECT 
+        SELECT
             c.id,
             SUM(s.total_amount) as total_spent,
             ROUND((SUM(i.paid_amount) / NULLIF(SUM(i.amount), 0)) * 100, 2) as payment_rate
@@ -86,7 +90,7 @@ $segmentation_query = "
         HAVING total_spent > 0
     ) customer_totals
     GROUP BY segment
-    ORDER BY 
+    ORDER BY
         CASE segment
             WHEN 'Premium (₨500K+)' THEN 1
             WHEN 'High Value (₨200K-500K)' THEN 2
@@ -103,8 +107,8 @@ $customer_segments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Payment behavior analysis
 $payment_behavior_query = "
-    SELECT 
-        CASE 
+    SELECT
+        CASE
             WHEN payment_rate >= 95 THEN 'Excellent (95%+)'
             WHEN payment_rate >= 80 THEN 'Good (80-94%)'
             WHEN payment_rate >= 60 THEN 'Average (60-79%)'
@@ -115,7 +119,7 @@ $payment_behavior_query = "
         AVG(total_spent) as avg_spending,
         AVG(overdue_installments) as avg_overdue
     FROM (
-        SELECT 
+        SELECT
             c.id,
             SUM(s.total_amount) as total_spent,
             COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_installments,
@@ -127,7 +131,7 @@ $payment_behavior_query = "
         HAVING total_spent > 0
     ) customer_behavior
     GROUP BY behavior_category
-    ORDER BY 
+    ORDER BY
         CASE behavior_category
             WHEN 'Excellent (95%+)' THEN 1
             WHEN 'Good (80-94%)' THEN 2
@@ -223,12 +227,11 @@ $most_purchases = array_slice($most_purchases, 0, 5);
     <div class="row mb-4">
         <?php foreach($customer_segments as $segment): ?>
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card <?= 
-                strpos($segment['segment'], 'Premium') !== false ? 'bg-primary' : 
-                (strpos($segment['segment'], 'High Value') !== false ? 'bg-success' : 
-                (strpos($segment['segment'], 'Medium') !== false ? 'bg-info' : 
-                (strpos($segment['segment'], 'Regular') !== false ? 'bg-warning' : 'bg-secondary'))) 
-            ?> text-white">
+            <div class="card <?=
+                strpos($segment['segment'], 'Premium') !== false ? 'bg-primary' :
+                (strpos($segment['segment'], 'High Value') !== false ? 'bg-success' :
+                (strpos($segment['segment'], 'Medium') !== false ? 'bg-info' :
+                (strpos($segment['segment'], 'Regular') !== false ? 'bg-warning' : 'bg-secondary'))) ?> text-white">
                 <div class="card-body text-center">
                     <h6 class="card-title"><?= htmlspecialchars($segment['segment']) ?></h6>
                     <h4><?= number_format($segment['customer_count']) ?></h4>
@@ -252,7 +255,7 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                 </div>
             </div>
         </div>
-        
+
         <!-- Payment Behavior Chart -->
         <div class="col-lg-6 mb-4">
             <div class="card">
@@ -292,7 +295,7 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                 </div>
             </div>
         </div>
-        
+
         <!-- Best Payers -->
         <div class="col-lg-4 mb-4">
             <div class="card">
@@ -317,7 +320,7 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                 </div>
             </div>
         </div>
-        
+
         <!-- Most Active -->
         <div class="col-lg-4 mb-4">
             <div class="card">
@@ -379,7 +382,7 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                                     <td>₨<?= number_format($customer['avg_purchase_amount'], 0) ?></td>
                                     <td>
                                         <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar <?= $customer['payment_rate'] >= 80 ? 'bg-success' : ($customer['payment_rate'] >= 50 ? 'bg-warning' : 'bg-danger') ?>" 
+                                            <div class="progress-bar <?= $customer['payment_rate'] >= 80 ? 'bg-success' : ($customer['payment_rate'] >= 50 ? 'bg-warning' : 'bg-danger') ?>"
                                                  style="width: <?= $customer['payment_rate'] ?>%">
                                                 <?= number_format($customer['payment_rate'], 1) ?>%
                                             </div>
@@ -397,10 +400,10 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                                         <small class="d-block text-muted"><?= $customer['days_since_last_purchase'] ?> days ago</small>
                                     </td>
                                     <td>
-                                        <?php 
+                                        <?php
                                         $status = 'New';
                                         $badge_class = 'bg-secondary';
-                                        
+
                                         if($customer['total_spent'] >= 500000) {
                                             $status = 'Premium';
                                             $badge_class = 'bg-primary';
@@ -420,13 +423,13 @@ $most_purchases = array_slice($most_purchases, 0, 5);
                                         ?>
                                         <span class="badge <?= $badge_class ?>"><?= $status ?></span>
                                     </td>
-                                    <td>
+                                    <td class="no-print">
                                         <?php if($customer['phone']): ?>
                                             <a href="tel:<?= $customer['phone'] ?>" class="btn btn-sm btn-outline-primary" title="Call Customer">
                                                 <i class="bi bi-telephone"></i>
                                             </a>
                                         <?php endif; ?>
-                                        <a href="<?= BASE_URL ?>/views/view_installments.php?customer_id=<?= $customer['id'] ?>" class="btn btn-sm btn-outline-info" title="View Details">
+                                        <a href="<?= BASE_URL ?>/views/list_sales.php?customer_id=<?= $customer['id'] ?>" class="btn btn-sm btn-outline-info" title="View Sales">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                     </td>
@@ -507,13 +510,13 @@ new Chart(paymentBehaviorCtx, {
 function exportToExcel() {
     let csv = 'Customer Performance Report\n\n';
     csv += 'Period: <?= $from_date ?> to <?= $to_date ?>\n\n';
-    
+
     csv += 'Customer Performance:\n';
     csv += 'Name,CNIC,Purchases,Total Spent,Avg Purchase,Payment Rate,Overdue,Last Purchase\n';
     <?php foreach($customer_performance as $customer): ?>
     csv += '<?= addslashes($customer['name']) ?>,<?= $customer['cnic'] ?>,<?= $customer['total_purchases'] ?>,<?= $customer['total_spent'] ?>,<?= $customer['avg_purchase_amount'] ?>,<?= $customer['payment_rate'] ?>,<?= $customer['overdue_installments'] ?>,<?= $customer['last_purchase_date'] ?>\n';
     <?php endforeach; ?>
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');

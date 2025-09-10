@@ -1,6 +1,10 @@
-<?php 
-include '../config/db.php'; 
-include '../includes/header.php'; 
+<?php
+include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
+include '../includes/header.php';
 
 // Get rent data
 $rent_id = isset($_GET['rent_id']) ? (int)$_GET['rent_id'] : 0;

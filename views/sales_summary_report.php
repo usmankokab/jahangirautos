@@ -1,5 +1,9 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
 include '../includes/header.php';
 
 // Get filter parameters
@@ -142,7 +146,7 @@ $payment_status = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             <button class="btn btn-outline-success" onclick="exportToExcel()">
                 <i class="bi bi-file-earmark-excel"></i> Export
             </button>
-            <a href="reports_dashboard.php" class="btn btn-outline-primary">
+            <a href="<?= BASE_URL ?>/index.php" class="btn btn-outline-primary">
                 <i class="bi bi-arrow-left"></i> Back to Dashboard
             </a>
         </div>

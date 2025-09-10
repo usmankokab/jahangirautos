@@ -1,5 +1,11 @@
-<?php include '../config/db.php'; ?>
-<?php include '../includes/header.php'; ?>
+<?php
+include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
+include '../includes/header.php';
+?>
 
 <div class="container" style="max-width:700px;">
   <div class="card shadow-sm my-4">

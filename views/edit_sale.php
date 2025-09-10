@@ -1,6 +1,10 @@
-<?php 
-include '../config/db.php'; 
-include '../includes/header.php'; 
+<?php
+include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
+include '../includes/header.php';
 
 // Get sale data
 $sale_id = isset($_GET['sale_id']) ? (int)$_GET['sale_id'] : 0;

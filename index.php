@@ -18,11 +18,11 @@ $current_year_start = date('Y-01-01');
 // Quick stats for dashboard cards
 $stats_query = "
     SELECT 
-        (SELECT COUNT(*) FROM sales) as total_sales,
+        (SELECT COUNT(DISTINCT s.id) FROM sales s LEFT JOIN installments i ON s.id=i.sale_id) as total_sales,
         (SELECT COUNT(*) FROM rents) as total_rents,
-        (SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE MONTH(sale_date) = MONTH(CURDATE()) AND YEAR(sale_date) = YEAR(CURDATE())) as monthly_sales_amount,
+        (SELECT COALESCE(SUM(total_amount + ((total_amount * interest_rate) / 100)), 0) FROM sales WHERE MONTH(sale_date) = MONTH(CURDATE()) AND YEAR(sale_date) = YEAR(CURDATE())) as monthly_sales_amount,
         (SELECT COALESCE(SUM(CASE WHEN rent_type = 'daily' THEN daily_rent * DATEDIFF(end_date, start_date) ELSE total_rent END), 0) FROM rents WHERE MONTH(start_date) = MONTH(CURDATE()) AND YEAR(start_date) = YEAR(CURDATE())) as monthly_rent_amount,
-        (SELECT COUNT(*) FROM installments WHERE status = 'unpaid' AND due_date <= CURDATE()) as overdue_installments,
+        (SELECT COUNT(*) FROM installments WHERE status IN ('unpaid', 'partial') AND due_date <= CURDATE()) as overdue_count,
         (SELECT COALESCE(SUM(amount - paid_amount), 0) FROM installments WHERE status IN ('unpaid', 'partial')) as pending_amount
 ";
 $stats_result = $conn->query($stats_query);
@@ -111,7 +111,7 @@ $stats = $stats_result->fetch_assoc();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Overdue</div>
-                            <div class="h4 mb-0"><?= number_format($stats['overdue_installments']) ?></div>
+                            <div class="h4 mb-0"><?= number_format($stats['overdue_count']) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-exclamation-triangle fa-2x"></i>

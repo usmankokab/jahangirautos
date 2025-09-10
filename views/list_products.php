@@ -1,5 +1,9 @@
-<?php 
+<?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
+
 include '../includes/header.php';
 ?>
 
