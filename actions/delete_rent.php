@@ -1,5 +1,8 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['rent_id'])) {
   $rent_id = (int)$_GET['rent_id'];

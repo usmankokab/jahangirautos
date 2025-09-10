@@ -1,0 +1,8 @@
+# Deny all access to SQL directory
+Order Allow,Deny
+Deny from all
+
+# Allow access only from localhost for development
+Allow from 127.0.0.1
+Allow from ::1
+Allow from localhost

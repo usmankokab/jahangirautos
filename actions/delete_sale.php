@@ -1,5 +1,8 @@
 <?php
 include __DIR__ . '/../config/db.php';
+include __DIR__ . '/../config/auth.php';
+
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['sale_id'])) {
   $sale_id = (int)$_GET['sale_id'];

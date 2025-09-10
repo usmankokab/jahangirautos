@@ -1,5 +1,8 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
 
 header('Content-Type: application/json');
 

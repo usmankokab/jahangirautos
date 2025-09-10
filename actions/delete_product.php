@@ -2,6 +2,9 @@
 session_start();
 require_once '../config/app.php';
 require_once '../config/db.php';
+require_once '../config/auth.php';
+
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $product_id = (int)$_GET['id'];

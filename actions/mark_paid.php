@@ -1,5 +1,8 @@
 <?php
 include __DIR__ . '/../config/db.php';
+include __DIR__ . '/../config/auth.php';
+
+$auth->requireLogin();
 
 $inst = (int)$_GET['inst_id'];
 if($inst){

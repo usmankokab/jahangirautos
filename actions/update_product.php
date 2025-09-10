@@ -1,5 +1,8 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $product_id = (int)$_POST['product_id'];

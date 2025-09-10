@@ -1,5 +1,8 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
+
+$auth->requireLogin();
 
 if (isset($_GET['id'])) {
     $customer_id = (int)$_GET['id'];

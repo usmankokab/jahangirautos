@@ -1,5 +1,8 @@
 <?php
 include __DIR__ . '/../config/db.php';
+include __DIR__ . '/../config/auth.php';
+
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $cust  = $_POST['customer_id'];

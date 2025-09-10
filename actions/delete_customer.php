@@ -1,6 +1,9 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
 include '../config/app.php';
+
+$auth->requireLogin();
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ' . BASE_URL . '/views/list_customers.php?error=' . urlencode('Invalid customer ID'));

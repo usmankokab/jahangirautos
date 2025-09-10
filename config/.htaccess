@@ -1,0 +1,26 @@
+# Deny all access to config directory
+Order Allow,Deny
+Deny from all
+
+# Allow access only from localhost for development
+Allow from 127.0.0.1
+Allow from ::1
+Allow from localhost
+
+# Allow access to PHP files that are included by other scripts
+<FilesMatch "\.php$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Completely deny access to sensitive files
+<FilesMatch "\.(sql|log|conf|ini|env|bak|backup)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to database and auth files
+<FilesMatch "^(db\.php|auth\.php|config\.php)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

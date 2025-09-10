@@ -1,0 +1,14 @@
+# Prevent directory listing
+Options -Indexes
+
+# Allow access to PHP files but they should check authentication internally
+<FilesMatch "\.php$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Deny access to other file types
+<FilesMatch "\.(sql|log|conf|ini|env|bak|backup)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

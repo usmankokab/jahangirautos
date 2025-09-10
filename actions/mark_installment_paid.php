@@ -1,6 +1,8 @@
 <?php
 include '../config/db.php';
+include '../config/auth.php';
 
+$auth->requireLogin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $installment_id = (int)$_POST['installment_id'];
