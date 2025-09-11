@@ -70,4 +70,10 @@ INSERT INTO modules (module_name, description, parent_id) VALUES
 ('customer_performance', 'Customer Performance Report', 7),
 ('sales_summary', 'Sales Summary Report', 7),
 ('rent_summary', 'Rent Summary Report', 7),
-('installment_analysis', 'Installment Analysis Report', 7);
+('installment_analysis', 'Installment Analysis Report', 7),
+('overdue_report', 'Overdue Payments Report', 7),
+('rental_utilization_report', 'Rental Utilization Report', 7),
+('rental_profitability_report', 'Rental Profitability Report', 7),
+('rent_payment_report', 'Rent Payment Report', 7),
+('rent_customer_report', 'Rent Customer Report', 7),
+('product_performance_report', 'Product Performance Report', 7);

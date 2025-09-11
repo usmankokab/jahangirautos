@@ -819,12 +819,6 @@ include '../includes/header.php';
                                     <small class="text-muted">Set common permission presets</small>
                                 </div>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-success" onclick="setRolePermissions('manager')" title="Set Manager Permissions">
-                                        <i class="bi bi-person-badge me-1"></i>Manager
-                                    </button>
-                                    <button type="button" class="btn btn-outline-info" onclick="setRolePermissions('employee')" title="Set Employee Permissions">
-                                        <i class="bi bi-person me-1"></i>Employee
-                                    </button>
                                     <button type="button" class="btn btn-outline-warning" onclick="setRolePermissions('viewer')" title="Set View-Only Permissions">
                                         <i class="bi bi-eye me-1"></i>Viewer
                                     </button>
@@ -857,6 +851,15 @@ include '../includes/header.php';
                                                $module['module_name'] !== 'rent_summary' &&
                                                $module['module_name'] !== 'sales_summary';
                                     });
+
+                                    // Remove duplicates based on module_name to ensure unique modules
+                                    $unique_core_modules = [];
+                                    foreach ($core_modules as $module) {
+                                        if (!isset($unique_core_modules[$module['module_name']])) {
+                                            $unique_core_modules[$module['module_name']] = $module;
+                                        }
+                                    }
+                                    $core_modules = array_values($unique_core_modules);
 
                                     foreach ($core_modules as $module):
                                         $module_icon = '';
@@ -986,18 +989,33 @@ include '../includes/header.php';
                                         <h6 class="text-success mb-3">
                                             <i class="bi bi-file-earmark-bar-graph me-2"></i>Individual Reports
                                         </h6>
-                                        <?php foreach ($report_submodules as $report):
-                                            $report_icon = '';
-                                            $report_color = 'success';
-                                            switch($report['module_name']) {
-                                                case 'sales_summary_report': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
-                                                case 'customer_performance_report': $report_icon = 'bi-people'; $report_color = 'info'; break;
-                                                case 'installment_analysis_report': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
-                                                case 'rent_summary_report': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
-                                                case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
-                                                default: $report_icon = 'bi-file-earmark-text'; $report_color = 'success';
+                                        <?php
+                                        // Remove duplicates from report submodules
+                                        $unique_report_submodules = [];
+                                        foreach ($report_submodules as $report) {
+                                            if (!isset($unique_report_submodules[$report['module_name']])) {
+                                                $unique_report_submodules[$report['module_name']] = $report;
                                             }
-                                        ?>
+                                        }
+                                        $report_submodules = array_values($unique_report_submodules);
+   
+                                        foreach ($report_submodules as $report):
+                                                $report_icon = '';
+                                                $report_color = 'success';
+                                                switch($report['module_name']) {
+                                                    case 'sales_summary_report': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
+                                                    case 'customer_performance_report': $report_icon = 'bi-people'; $report_color = 'info'; break;
+                                                    case 'installment_analysis_report': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
+                                                    case 'rent_summary_report': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
+                                                    case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
+                                                    case 'rental_utilization_report': $report_icon = 'bi-bar-chart-line'; $report_color = 'info'; break;
+                                                    case 'rental_profitability_report': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
+                                                    case 'rent_payment_report': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
+                                                    case 'rent_customer_report': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
+                                                    case 'product_performance_report': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
+                                                    default: $report_icon = 'bi-file-earmark-text'; $report_color = 'success';
+                                                }
+                                            ?>
                                         <div class="card mb-2 border-<?= $report_color ?> shadow-sm">
                                             <div class="card-body p-3">
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -1244,45 +1262,6 @@ function setRolePermissions(role) {
             });
             break;
 
-        case 'manager':
-            // Manager permissions - between admin and employee
-            const managerPermissions = [
-                'view_1', 'add_1', 'edit_1',  // Dashboard
-                'view_3', 'add_3', 'edit_3', 'delete_3',  // Customers
-                'view_4', 'add_4', 'edit_4', 'delete_4',  // Products
-                'view_5', 'add_5', 'edit_5', 'delete_5',  // Sales
-                'view_6', 'add_6', 'edit_6',  // Rents
-                'view_7'  // Reports
-            ];
-            managerPermissions.forEach(id => {
-                const cb = document.getElementById(id);
-                if (cb) {
-                    cb.checked = true;
-                    if (cb.classList.contains('module-perm-')) {
-                        cb.disabled = false;
-                    }
-                }
-            });
-            break;
-
-        case 'employee':
-            // Limited permissions - view and basic operations
-            const employeePermissions = [
-                'view_1',  // Dashboard
-                'view_3', 'add_3', 'edit_3',  // Customers
-                'view_4', 'add_4', 'edit_4',  // Products
-                'view_5', 'add_5', 'edit_5'   // Sales
-            ];
-            employeePermissions.forEach(id => {
-                const cb = document.getElementById(id);
-                if (cb) {
-                    cb.checked = true;
-                    if (cb.classList.contains('module-perm-')) {
-                        cb.disabled = false;
-                    }
-                }
-            });
-            break;
 
         case 'viewer':
             // View-only permissions for all modules
