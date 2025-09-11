@@ -328,26 +328,32 @@ include '../includes/header.php';
                                 </div>
                             </div>
 
-                            <!-- Individual Reports -->
-                            <div class="mb-3">
-                                <h6 class="text-success mb-3">
-                                    <i class="bi bi-file-earmark-bar-graph me-2"></i>Individual Reports
+                            <!-- Sales Reports -->
+                            <div class="mb-4">
+                                <h6 class="text-primary mb-3">
+                                    <i class="bi bi-receipt me-2"></i>Sales Reports
                                 </h6>
-                                <?php foreach ($report_submodules as $report):
+                                <?php
+                                $sales_reports = array_filter($report_submodules, function($report) {
+                                    return in_array($report['module_name'], [
+                                        'sales_summary',
+                                        'customer_performance',
+                                        'product_performance',
+                                        'installment_analysis',
+                                        'overdue_report'
+                                    ]);
+                                });
+
+                                foreach ($sales_reports as $report):
                                     $report_icon = '';
-                                    $report_color = 'success';
+                                    $report_color = 'primary';
                                     switch($report['module_name']) {
-                                        case 'sales_summary_report': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
-                                        case 'customer_performance_report': $report_icon = 'bi-people'; $report_color = 'info'; break;
-                                        case 'installment_analysis_report': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
-                                        case 'rent_summary_report': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
+                                        case 'sales_summary': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
+                                        case 'customer_performance': $report_icon = 'bi-people'; $report_color = 'info'; break;
+                                        case 'product_performance': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
+                                        case 'installment_analysis': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
                                         case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
-                                        case 'rental_utilization_report': $report_icon = 'bi-bar-chart-line'; $report_color = 'info'; break;
-                                        case 'rental_profitability_report': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
-                                        case 'rent_payment_report': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
-                                        case 'rent_customer_report': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
-                                        case 'product_performance_report': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
-                                        default: $report_icon = 'bi-file-earmark-text'; $report_color = 'success';
+                                        default: $report_icon = 'bi-file-earmark-text'; $report_color = 'primary';
                                     }
 
                                     $current_report_perm = $current_permissions[$report['id']] ?? null;
@@ -361,9 +367,66 @@ include '../includes/header.php';
                                                 </div>
                                                 <div>
                                                     <h6 class="mb-0 small fw-bold">
-                                                        <?= htmlspecialchars(str_replace('_', ' ', $report['module_name'])) ?>
+                                                        <?= htmlspecialchars(ucwords(str_replace('_', ' ', $report['module_name']))) ?>
                                                     </h6>
-                                                    <small class="text-muted">Report access</small>
+                                                    <small class="text-muted">Sales report</small>
+                                                </div>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="view_<?= $report['id'] ?>" name="permissions[<?= $report['id'] ?>][view]"
+                                                       <?= ($current_report_perm && $current_report_perm['can_view']) ? 'checked' : '' ?>>
+                                                <label class="form-check-label" for="view_<?= $report['id'] ?>">
+                                                    <i class="bi bi-eye me-1"></i>View
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <!-- Rent Reports -->
+                            <div class="mb-3">
+                                <h6 class="text-secondary mb-3">
+                                    <i class="bi bi-calendar-event me-2"></i>Rent Reports
+                                </h6>
+                                <?php
+                                $rent_reports = array_filter($report_submodules, function($report) {
+                                    return in_array($report['module_name'], [
+                                        'rent_summary',
+                                        'rental_utilization_report',
+                                        'rental_profitability',
+                                        'rent_payment',
+                                        'rent_customer'
+                                    ]);
+                                });
+
+                                foreach ($rent_reports as $report):
+                                    $report_icon = '';
+                                    $report_color = 'secondary';
+                                    switch($report['module_name']) {
+                                        case 'rent_summary': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
+                                        case 'rental_utilization_report': $report_icon = 'bi-bar-chart-line'; $report_color = 'info'; break;
+                                        case 'rental_profitability': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
+                                        case 'rent_payment': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
+                                        case 'rent_customer': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
+                                        default: $report_icon = 'bi-file-earmark-text'; $report_color = 'secondary';
+                                    }
+
+                                    $current_report_perm = $current_permissions[$report['id']] ?? null;
+                                ?>
+                                <div class="card mb-2 border-<?= $report_color ?> shadow-sm">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-<?= $report_color ?> text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px;">
+                                                    <i class="bi <?= $report_icon ?>"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 small fw-bold">
+                                                        <?= htmlspecialchars(ucwords(str_replace('_', ' ', $report['module_name']))) ?>
+                                                    </h6>
+                                                    <small class="text-muted">Rent report</small>
                                                 </div>
                                             </div>
                                             <div class="form-check">

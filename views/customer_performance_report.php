@@ -4,7 +4,7 @@ include '../config/auth.php';
 include '../includes/permissions.php';
 
 $auth->requireLogin();
-require_permission_or_lock('customer_performance_report', 'view');
+require_permission_or_lock('customer_performance', 'view');
 
 include '../includes/header.php';
 
