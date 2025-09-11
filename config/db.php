@@ -5,16 +5,17 @@
 require_once __DIR__ . '/app.php';
 
 // Environment-aware DB credentials
-if ($_SERVER['HTTP_HOST'] === 'localhost') {
+if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === 'localhost') {
     $host     = 'localhost';
     $dbname   = 'installment_db';
     $username = 'root';
     $password = '';
 } else {
-    $host     = 'localhost'; // or your Hostinger DB host (e.g., 'mysql.hostinger.com')
-    $dbname   = 'your_live_db_name';
-    $username = 'your_live_db_user';
-    $password = 'your_live_db_password';
+    // Default to localhost for command line or other environments
+    $host     = 'localhost';
+    $dbname   = 'installment_db';
+    $username = 'root';
+    $password = '';
 }
 
 // Create connection

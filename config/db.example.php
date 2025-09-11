@@ -18,6 +18,6 @@ if ($conn->connect_error) {
 // Set charset
 $conn->set_charset("utf8");
 
-// Base URL configuration
-define('BASE_URL', 'http://localhost/installment_app');
+// Base URL configuration - Set this according to your environment
+// define('BASE_URL', 'http://your-domain.com/your-app-path');
 ?>

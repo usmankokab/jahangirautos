@@ -1,7 +1,7 @@
 -- User Roles Table
 CREATE TABLE user_roles (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    role_name ENUM('super_admin', 'admin', 'employee', 'customer') NOT NULL,
+    role_name ENUM('super_admin', 'admin', 'manager', 'employee', 'customer') NOT NULL,
     description VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

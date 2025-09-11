@@ -22,8 +22,8 @@ $user_settings = [
     'timezone' => 'Asia/Karachi'
 ];
 
-// Get all available modules
-$modules_query = "SELECT * FROM modules ORDER BY parent_id, module_name";
+// Get all available modules, excluding duplicates
+$modules_query = "SELECT * FROM modules WHERE id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13) ORDER BY parent_id, module_name";
 $modules_result = $conn->query($modules_query);
 $modules = [];
 while ($module = $modules_result->fetch_assoc()) {
@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($current_user['role_name'] === 'super_admin') {
                     $can_manage = true; // Super admin can manage all
                 } elseif ($current_user['role_name'] === 'admin') {
-                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                    $can_manage = in_array($target_user['role_name'], ['manager', 'employee']); // Admin can manage managers and employees
                 } elseif ($current_user['role_name'] === 'manager') {
                     $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
                 }
@@ -206,13 +206,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $can_edit = isset($perms['edit']) ? 1 : 0;
                         $can_delete = isset($perms['delete']) ? 1 : 0;
 
-                        $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
                         $perm_stmt->bind_param("iiiiiii", $user_id, $module_id, $can_view, $can_add, $can_edit, $can_delete, $_SESSION['user_id']);
                         $perm_stmt->execute();
                     }
 
-                    $message = 'Permissions updated successfully!';
+                    $message = 'Permissions updated successfully! Changes take effect immediately.';
                     $message_type = 'success';
+
+                    // Refresh permissions in session for immediate effect
+                    require_once '../includes/permissions.php';
+                    refresh_user_permissions($user_id);
                 } else {
                     $message = 'You do not have permission to manage this user.';
                     $message_type = 'danger';
@@ -243,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($current_user['role_name'] === 'super_admin') {
                     $can_manage = true; // Super admin can manage all
                 } elseif ($current_user['role_name'] === 'admin') {
-                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                    $can_manage = in_array($target_user['role_name'], ['manager', 'employee']); // Admin can manage managers and employees
                 } elseif ($current_user['role_name'] === 'manager') {
                     $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
                 }
@@ -304,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($current_user['role_name'] === 'super_admin') {
                     $can_manage = true; // Super admin can manage all
                 } elseif ($current_user['role_name'] === 'admin') {
-                    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                    $can_manage = in_array($target_user['role_name'], ['manager', 'employee']); // Admin can manage managers and employees
                 } elseif ($current_user['role_name'] === 'manager') {
                     $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
                 }
@@ -432,7 +436,7 @@ include '../includes/header.php';
 
             <div class="row">
                 <!-- User Management (Admin Only) -->
-                <?php if ($is_admin): ?>
+                <?php if ($is_admin && check_permission('users', 'view')): ?>
                 <div class="col-12 mb-4">
                     <div class="card">
                         <div class="card-header bg-primary text-white">
@@ -461,7 +465,7 @@ include '../includes/header.php';
                                                     <?php
                                                     $allowed_roles = [];
                                                     if ($current_user['role_name'] === 'super_admin') {
-                                                        $allowed_roles = ['admin', 'manager'];
+                                                        $allowed_roles = ['admin'];
                                                     } elseif ($current_user['role_name'] === 'admin') {
                                                         $allowed_roles = ['manager', 'employee'];
                                                     } elseif ($current_user['role_name'] === 'manager') {
@@ -509,7 +513,7 @@ include '../includes/header.php';
                                                     if ($current_user['role_name'] === 'super_admin') {
                                                         $can_manage = true; // Super admin can manage all
                                                     } elseif ($current_user['role_name'] === 'admin') {
-                                                        $can_manage = !in_array($user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+                                                        $can_manage = in_array($user['role_name'], ['manager', 'employee']); // Admin can manage managers and employees
                                                     } elseif ($current_user['role_name'] === 'manager') {
                                                         $can_manage = $user['role_name'] === 'employee'; // Manager can only manage employees
                                                     }
@@ -531,9 +535,9 @@ include '../includes/header.php';
                                                     <td>
                                                         <?php if ($can_manage): ?>
                                                             <div class="d-flex gap-1" role="group">
-                                                                <button class="btn btn-sm btn-outline-primary" onclick="editPermissions(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Edit Permissions">
+                                                                <a href="<?= BASE_URL ?>/views/manage_permissions.php?user_id=<?= $user['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Permissions">
                                                                     <i class="bi bi-gear"></i>
-                                                                </button>
+                                                                </a>
                                                                 <button class="btn btn-sm btn-outline-secondary" onclick="changePassword(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Change Password">
                                                                     <i class="bi bi-key"></i>
                                                                 </button>
@@ -756,7 +760,7 @@ include '../includes/header.php';
 </div>
 
 <!-- Change Password Modal -->
-<?php if ($is_admin): ?>
+<?php if ($is_admin && check_permission('users', 'view')): ?>
 <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -793,302 +797,6 @@ include '../includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Permissions Management Modal -->
-<?php if ($is_admin): ?>
-<div class="modal fade permissions-modal" id="permissionsModal" tabindex="-1" aria-labelledby="permissionsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="permissionsModalLabel">
-                    <i class="bi bi-shield-lock me-2"></i>Manage Permissions - <span id="userName"></span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" action="">
-                <input type="hidden" name="update_permissions" value="1">
-                <input type="hidden" name="user_id" id="modalUserId" value="">
-                <div class="modal-body">
-                    <!-- Quick Actions Bar -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <h6 class="mb-0 text-primary">
-                                        <i class="bi bi-lightning-charge me-2"></i>Quick Actions
-                                    </h6>
-                                    <small class="text-muted">Set common permission presets</small>
-                                </div>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-warning" onclick="setRolePermissions('viewer')" title="Set View-Only Permissions">
-                                        <i class="bi bi-eye me-1"></i>Viewer
-                                    </button>
-                                    <button type="button" class="btn btn-outline-danger" onclick="clearAllPermissions()" title="Clear All Permissions">
-                                        <i class="bi bi-x-circle me-1"></i>Clear All
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <!-- Core System Modules -->
-                        <div class="col-md-6">
-                            <div class="card border-primary">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-gear me-2"></i>Core System Modules
-                                    </h6>
-                                    <small>Essential system functionality</small>
-                                </div>
-                                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                                    <?php
-                                    // Get only core modules (no parent_id and not reports, excluding specific report modules)
-                                    $core_modules = array_filter($modules, function($module) {
-                                        return is_null($module['parent_id']) &&
-                                               $module['module_name'] !== 'reports' &&
-                                               $module['module_name'] !== 'customer_performance' &&
-                                               $module['module_name'] !== 'installment_analysis' &&
-                                               $module['module_name'] !== 'rent_summary' &&
-                                               $module['module_name'] !== 'sales_summary';
-                                    });
-
-                                    // Remove duplicates based on module_name to ensure unique modules
-                                    $unique_core_modules = [];
-                                    foreach ($core_modules as $module) {
-                                        if (!isset($unique_core_modules[$module['module_name']])) {
-                                            $unique_core_modules[$module['module_name']] = $module;
-                                        }
-                                    }
-                                    $core_modules = array_values($unique_core_modules);
-
-                                    foreach ($core_modules as $module):
-                                        $module_icon = '';
-                                        $module_color = 'primary';
-                                        switch($module['module_name']) {
-                                            case 'dashboard': $module_icon = 'bi-speedometer2'; $module_color = 'primary'; break;
-                                            case 'users': $module_icon = 'bi-people'; $module_color = 'success'; break;
-                                            case 'customers': $module_icon = 'bi-person-check'; $module_color = 'info'; break;
-                                            case 'products': $module_icon = 'bi-box-seam'; $module_color = 'warning'; break;
-                                            case 'sales': $module_icon = 'bi-receipt'; $module_color = 'danger'; break;
-                                            case 'rents': $module_icon = 'bi-calendar-event'; $module_color = 'secondary'; break;
-                                            default: $module_icon = 'bi-circle'; $module_color = 'primary';
-                                        }
-                                    ?>
-                                    <div class="card mb-3 border-<?= $module_color ?> shadow-sm">
-                                        <div class="card-body p-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="bg-<?= $module_color ?> text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                                        <i class="bi <?= $module_icon ?> fs-5"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-0 text-capitalize fw-bold"><?= htmlspecialchars($module['module_name']) ?></h6>
-                                                        <small class="text-muted">System module</small>
-                                                    </div>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="view_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][view]" onchange="toggleModulePermissions(<?= $module['id'] ?>, this.checked)">
-                                                    <label class="form-check-label fw-bold" for="view_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow viewing this module">
-                                                        <i class="bi bi-eye me-1"></i>View
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div class="row g-2">
-                                                <div class="col-4">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="add_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][add]">
-                                                        <label class="form-check-label small" for="add_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow creating new records">
-                                                            <i class="bi bi-plus-circle text-success me-1"></i>Add
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="edit_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][edit]">
-                                                        <label class="form-check-label small" for="edit_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow editing existing records">
-                                                            <i class="bi bi-pencil text-warning me-1"></i>Edit
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input module-perm-<?= $module['id'] ?>" type="checkbox" id="delete_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][delete]">
-                                                        <label class="form-check-label small" for="delete_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Allow deleting records">
-                                                            <i class="bi bi-trash text-danger me-1"></i>Delete
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="mt-2">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm me-1" onclick="selectAllPermissions(<?= $module['id'] ?>)">
-                                                    <i class="bi bi-check-all me-1"></i>All
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm me-1" onclick="selectViewOnlyPermissions(<?= $module['id'] ?>)">
-                                                    <i class="bi bi-eye me-1"></i>View Only
-                                                </button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-sm" onclick="clearModulePermissions(<?= $module['id'] ?>)">
-                                                    <i class="bi bi-x me-1"></i>Clear
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Reports & Analytics -->
-                        <div class="col-md-6">
-                            <div class="card border-success">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">
-                                        <i class="bi bi-bar-chart-line me-2"></i>Reports & Analytics
-                                    </h6>
-                                    <small>Access to reporting and analytical tools</small>
-                                </div>
-                                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                                    <?php
-                                    // Get reports module and its submodules
-                                    $reports_module = array_filter($modules, function($module) {
-                                        return $module['module_name'] === 'reports';
-                                    });
-                                    $reports_module = reset($reports_module);
-
-                                    if ($reports_module):
-                                        $report_submodules = array_filter($modules, function($module) use ($reports_module) {
-                                            return $module['parent_id'] == $reports_module['id'];
-                                        });
-                                    ?>
-                                    <!-- Reports Dashboard Access -->
-                                    <div class="card mb-3 border-success shadow-sm">
-                                        <div class="card-body p-3">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                                                        <i class="bi bi-graph-up fs-5"></i>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-0 fw-bold">Reports Dashboard</h6>
-                                                        <small class="text-muted">Main reports hub</small>
-                                                    </div>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="view_<?= $reports_module['id'] ?>" name="permissions[<?= $reports_module['id'] ?>][view]">
-                                                    <label class="form-check-label fw-bold" for="view_<?= $reports_module['id'] ?>" data-bs-toggle="tooltip" title="Access reports dashboard">
-                                                        <i class="bi bi-eye me-1"></i>Access
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Individual Reports -->
-                                    <div class="mb-3">
-                                        <h6 class="text-success mb-3">
-                                            <i class="bi bi-file-earmark-bar-graph me-2"></i>Individual Reports
-                                        </h6>
-                                        <?php
-                                        // Remove duplicates from report submodules
-                                        $unique_report_submodules = [];
-                                        foreach ($report_submodules as $report) {
-                                            if (!isset($unique_report_submodules[$report['module_name']])) {
-                                                $unique_report_submodules[$report['module_name']] = $report;
-                                            }
-                                        }
-                                        $report_submodules = array_values($unique_report_submodules);
-   
-                                        foreach ($report_submodules as $report):
-                                                $report_icon = '';
-                                                $report_color = 'success';
-                                                switch($report['module_name']) {
-                                                    case 'sales_summary_report': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
-                                                    case 'customer_performance_report': $report_icon = 'bi-people'; $report_color = 'info'; break;
-                                                    case 'installment_analysis_report': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
-                                                    case 'rent_summary_report': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
-                                                    case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
-                                                    case 'rental_utilization_report': $report_icon = 'bi-bar-chart-line'; $report_color = 'info'; break;
-                                                    case 'rental_profitability_report': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
-                                                    case 'rent_payment_report': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
-                                                    case 'rent_customer_report': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
-                                                    case 'product_performance_report': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
-                                                    default: $report_icon = 'bi-file-earmark-text'; $report_color = 'success';
-                                                }
-                                            ?>
-                                        <div class="card mb-2 border-<?= $report_color ?> shadow-sm">
-                                            <div class="card-body p-3">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="bg-<?= $report_color ?> text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px;">
-                                                            <i class="bi <?= $report_icon ?>"></i>
-                                                        </div>
-                                                        <div>
-                                                            <h6 class="mb-0 small fw-bold">
-                                                                <?= htmlspecialchars(str_replace('_', ' ', $report['module_name'])) ?>
-                                                            </h6>
-                                                            <small class="text-muted">Report access</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="view_<?= $report['id'] ?>" name="permissions[<?= $report['id'] ?>][view]">
-                                                        <label class="form-check-label" for="view_<?= $report['id'] ?>" data-bs-toggle="tooltip" title="View this report">
-                                                            <i class="bi bi-eye me-1"></i>View
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <?php endif; ?>
-
-                                    <!-- Summary Section -->
-                                    <div class="alert alert-info mt-3">
-                                        <h6 class="alert-heading mb-2">
-                                            <i class="bi bi-info-circle me-2"></i>Permission Summary
-                                        </h6>
-                                        <div class="row text-center">
-                                            <div class="col-4">
-                                                <div class="fw-bold text-primary" id="totalModules">0</div>
-                                                <small>Modules</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="fw-bold text-success" id="totalReports">0</div>
-                                                <small>Reports</small>
-                                            </div>
-                                            <div class="col-4">
-                                                <div class="fw-bold text-warning" id="totalPermissions">0</div>
-                                                <small>Permissions</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light">
-                    <div class="d-flex justify-content-between w-100">
-                        <div class="text-muted small">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Changes will take effect immediately after saving
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
-                                <i class="bi bi-x me-1"></i>Cancel
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>Update Permissions
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
 
 <script>
 function resetSettings() {
@@ -1114,173 +822,6 @@ function privacySettings() {
     alert('Privacy settings panel will be available in a future update.');
 }
 
-// User Management Functions
-function editPermissions(userId, username) {
-    document.getElementById('modalUserId').value = userId;
-    document.getElementById('userName').textContent = username;
-
-    // Fetch current permissions
-    fetch('<?= BASE_URL ?>/actions/get_user_permissions.php?user_id=' + userId)
-        .then(response => response.json())
-        .then(data => {
-            // Reset all checkboxes and disable module permissions
-            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
-                cb.checked = false;
-            });
-            document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
-                cb.disabled = true;
-            });
-
-            // Set permissions based on data
-            data.forEach(perm => {
-                if (perm.can_view) {
-                    document.getElementById('view_' + perm.module_id).checked = true;
-                    // Enable module permissions if view is checked
-                    const modulePermissions = document.querySelectorAll(`.module-perm-${perm.module_id}`);
-                    modulePermissions.forEach(cb => {
-                        cb.disabled = false;
-                    });
-                }
-                if (perm.can_add) document.getElementById('add_' + perm.module_id).checked = true;
-                if (perm.can_edit) document.getElementById('edit_' + perm.module_id).checked = true;
-                if (perm.can_delete) document.getElementById('delete_' + perm.module_id).checked = true;
-            });
-
-            // Update permission summary
-            updatePermissionSummary();
-
-            // Initialize tooltips
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-
-            // Show modal
-            new bootstrap.Modal(document.getElementById('permissionsModal')).show();
-        })
-        .catch(error => {
-            console.error('Error loading permissions:', error);
-            alert('Error loading user permissions. Please try again.');
-        });
-}
-
-function toggleModulePermissions(moduleId, isChecked) {
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = isChecked;
-        cb.disabled = !isChecked;
-    });
-    updatePermissionSummary();
-}
-
-function selectAllPermissions(moduleId) {
-    document.getElementById(`view_${moduleId}`).checked = true;
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = true;
-        cb.disabled = false;
-    });
-    updatePermissionSummary();
-}
-
-function selectViewOnlyPermissions(moduleId) {
-    document.getElementById(`view_${moduleId}`).checked = true;
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = false;
-        cb.disabled = false;
-    });
-    updatePermissionSummary();
-}
-
-function clearModulePermissions(moduleId) {
-    document.getElementById(`view_${moduleId}`).checked = false;
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = false;
-        cb.disabled = true;
-    });
-    updatePermissionSummary();
-}
-
-function clearAllPermissions() {
-    if (confirm('Are you sure you want to clear all permissions?')) {
-        // Clear all checkboxes
-        document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
-            cb.checked = false;
-        });
-
-        // Disable all module permissions
-        document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
-            cb.disabled = true;
-        });
-
-        updatePermissionSummary();
-    }
-}
-
-function updatePermissionSummary() {
-    const totalModules = document.querySelectorAll('#permissionsModal .col-md-6:first-child .card').length;
-    const totalReports = document.querySelectorAll('#permissionsModal .col-md-6:last-child .card').length - 1; // Subtract 1 for the summary alert
-    const totalPermissions = document.querySelectorAll('#permissionsModal input[type="checkbox"]:checked').length;
-
-    document.getElementById('totalModules').textContent = totalModules;
-    document.getElementById('totalReports').textContent = totalReports;
-    document.getElementById('totalPermissions').textContent = totalPermissions;
-}
-
-function setRolePermissions(role) {
-    // Reset all checkboxes and disable module permissions
-    document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
-        cb.checked = false;
-    });
-    document.querySelectorAll('[class*="module-perm-"]').forEach(cb => {
-        cb.disabled = true;
-    });
-
-    // Set permissions based on role
-    switch(role) {
-        case 'super_admin':
-            // All permissions for all modules
-            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
-                cb.checked = true;
-                if (cb.classList.contains('module-perm-')) {
-                    cb.disabled = false;
-                }
-            });
-            break;
-
-        case 'admin':
-            // Most permissions except user management
-            document.querySelectorAll('#permissionsModal input[type="checkbox"]').forEach(cb => {
-                if (!cb.id.includes('_2')) { // Skip user management module
-                    cb.checked = true;
-                    if (cb.classList.contains('module-perm-')) {
-                        cb.disabled = false;
-                    }
-                }
-            });
-            break;
-
-
-        case 'viewer':
-            // View-only permissions for all modules
-            document.querySelectorAll('#permissionsModal input[id^="view_"]').forEach(cb => {
-                cb.checked = true;
-                // Enable the module permissions but don't check them
-                const moduleId = cb.id.split('_')[1];
-                const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-                modulePermissions.forEach(permCb => {
-                    permCb.disabled = false;
-                    permCb.checked = false;
-                });
-            });
-            break;
-    }
-
-    // Update permission summary
-    updatePermissionSummary();
-}
 
 // Apply theme immediately when changed
 document.getElementById('theme').addEventListener('change', function() {
@@ -1423,181 +964,5 @@ function deleteUser(userId, username) {
 }
 </script>
 
-<style>
-/* Interactive Permissions Modal Styles */
-.permissions-modal .card {
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.permissions-modal .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.permissions-modal .module-icon {
-    transition: transform 0.2s ease;
-}
-
-.permissions-modal .card:hover .module-icon {
-    transform: scale(1.1);
-}
-
-.permissions-modal .form-check-input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.permissions-modal .btn-group .btn {
-    border-radius: 0.375rem !important;
-    margin: 0 2px;
-}
-
-.permissions-modal .btn-group .btn:first-child {
-    margin-left: 0;
-}
-
-.permissions-modal .btn-group .btn:last-child {
-    margin-right: 0;
-}
-
-.permissions-modal .permission-summary {
-    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    padding: 15px;
-}
-
-/* Quick action buttons styling */
-.permissions-modal .quick-actions .btn {
-    transition: all 0.2s ease;
-}
-
-.permissions-modal .quick-actions .btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* Module permission cards */
-.permissions-modal .module-card {
-    position: relative;
-    overflow: hidden;
-}
-
-.permissions-modal .module-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(to bottom, var(--bs-primary), var(--bs-primary-rgb));
-    opacity: 0.7;
-}
-
-.permissions-modal .module-card.primary::before {
-    background: linear-gradient(to bottom, var(--bs-primary), #0056b3);
-}
-
-.permissions-modal .module-card.success::before {
-    background: linear-gradient(to bottom, var(--bs-success), #1e7e34);
-}
-
-.permissions-modal .module-card.info::before {
-    background: linear-gradient(to bottom, var(--bs-info), #117a8b);
-}
-
-.permissions-modal .module-card.warning::before {
-    background: linear-gradient(to bottom, var(--bs-warning), #d39e00);
-}
-
-.permissions-modal .module-card.danger::before {
-    background: linear-gradient(to bottom, var(--bs-danger), #bd2130);
-}
-
-/* Dark theme support */
-.dark-theme {
-    background-color: #1a1a1a !important;
-    color: #ffffff !important;
-}
-
-.dark-theme .card {
-    background-color: #2d2d2d !important;
-    border-color: #404040 !important;
-    color: #ffffff !important;
-}
-
-.dark-theme .form-control,
-.dark-theme .form-select {
-    background-color: #3d3d3d !important;
-    border-color: #404040 !important;
-    color: #ffffff !important;
-}
-
-.dark-theme .form-control:focus,
-.dark-theme .form-select:focus {
-    background-color: #3d3d3d !important;
-    border-color: #007bff !important;
-    color: #ffffff !important;
-}
-
-.dark-theme .permissions-modal .permission-summary {
-    background: linear-gradient(45deg, #2d2d2d, #404040);
-    color: #ffffff;
-}
-
-.dark-theme .permissions-modal .card {
-    background-color: #2d2d2d !important;
-    border-color: #404040 !important;
-}
-
-.dark-theme .permissions-modal .card-header {
-    background-color: #404040 !important;
-    border-color: #505050 !important;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .permissions-modal .btn-group {
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .permissions-modal .btn-group .btn {
-        margin: 0 !important;
-    }
-
-    .permissions-modal .modal-dialog {
-        margin: 0.5rem;
-    }
-}
-
-/* Animation for permission changes */
-@keyframes permissionChange {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.permissions-modal .form-check-input:checked {
-    animation: permissionChange 0.3s ease;
-}
-
-/* Tooltip styling */
-.tooltip-inner {
-    background-color: #333;
-    color: #fff;
-    border-radius: 6px;
-    font-size: 12px;
-}
-
-.tooltip.bs-tooltip-top .tooltip-arrow::before {
-    border-top-color: #333;
-}
-
-.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
-    border-bottom-color: #333;
-}
-</style>
 
 <?php include '../includes/footer.php'; ?>

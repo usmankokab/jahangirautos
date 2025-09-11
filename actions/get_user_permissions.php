@@ -11,7 +11,7 @@ $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-if (!in_array($user['role_name'], ['super_admin', 'admin'])) {
+if (!in_array($user['role_name'], ['super_admin', 'admin', 'manager'])) {
     http_response_code(403);
     echo json_encode(['error' => 'Unauthorized']);
     exit();
@@ -43,9 +43,9 @@ $can_manage = false;
 if ($user['role_name'] === 'super_admin') {
     $can_manage = true; // Super admin can manage all
 } elseif ($user['role_name'] === 'admin') {
-    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin']); // Admin cannot manage super_admin or other admins
-} elseif ($user['role_name'] === 'employee') {
-    $can_manage = $target_user['role_name'] === 'customer'; // Employee can only manage customers
+    $can_manage = !in_array($target_user['role_name'], ['super_admin', 'admin', 'manager']); // Admin cannot manage super_admin, admin, or manager
+} elseif ($user['role_name'] === 'manager') {
+    $can_manage = $target_user['role_name'] === 'employee'; // Manager can only manage employees
 }
 
 if (!$can_manage) {
@@ -55,12 +55,13 @@ if (!$can_manage) {
 }
 
 try {
-    // Get user permissions
+    // Get user permissions, excluding duplicate modules
     $permissions_query = "
         SELECT up.*, m.module_name, m.parent_id
         FROM user_permissions up
         LEFT JOIN modules m ON up.module_id = m.id
         WHERE up.user_id = ?
+        AND m.id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13)
         ORDER BY m.parent_id, m.module_name
     ";
     $stmt = $conn->prepare($permissions_query);

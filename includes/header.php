@@ -1,6 +1,10 @@
 <?php
 // includes/header.php
 // must be included after config/db.php so BASE_URL is available
+include 'permissions.php';
+
+// Check if permissions need to be refreshed (for real-time updates)
+check_and_refresh_permissions_if_needed();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,6 +110,7 @@ if (isset($_GET['error'])) {
       </li>
 
       <!-- Customers -->
+      <?php if (check_permission('customers', 'view')): ?>
       <li class="nav-item">
         <a
           class="nav-link"
@@ -114,8 +119,10 @@ if (isset($_GET['error'])) {
           <span>Customers</span>
         </a>
       </li>
+      <?php endif; ?>
 
       <!-- Products -->
+      <?php if (check_permission('products', 'view')): ?>
       <li class="nav-item">
         <a
           class="nav-link"
@@ -124,8 +131,10 @@ if (isset($_GET['error'])) {
           <span>Products</span>
         </a>
       </li>
+      <?php endif; ?>
 
       <!-- Sales -->
+      <?php if (check_permission('sales', 'view')): ?>
       <li class="nav-item">
         <a
           class="nav-link"
@@ -134,8 +143,10 @@ if (isset($_GET['error'])) {
           <span>Sales</span>
         </a>
       </li>
+      <?php endif; ?>
 
       <!-- Rent -->
+      <?php if (check_permission('rents', 'view')): ?>
       <li class="nav-item">
         <a
           class="nav-link"
@@ -144,8 +155,22 @@ if (isset($_GET['error'])) {
           <span>Rent</span>
         </a>
       </li>
+      <?php endif; ?>
 
       <!-- Reports -->
+      <?php
+      $hasReportAccess = check_permission('sales_summary_report', 'view') ||
+                        check_permission('customer_performance_report', 'view') ||
+                        check_permission('installment_analysis_report', 'view') ||
+                        check_permission('overdue_report', 'view') ||
+                        check_permission('product_performance_report', 'view') ||
+                        check_permission('rent_summary_report', 'view') ||
+                        check_permission('rent_customer_report', 'view') ||
+                        check_permission('rent_payment_report', 'view') ||
+                        check_permission('rental_profitability_report', 'view') ||
+                        check_permission('rental_utilization_report', 'view');
+      ?>
+      <?php if ($hasReportAccess): ?>
       <li class="nav-item">
         <a
           class="nav-link"
@@ -167,36 +192,46 @@ if (isset($_GET['error'])) {
                 <span>Sales Reports</span>
               </a>
             </li>
+            <?php if (check_permission('sales_summary_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/sales_summary_report.php">
                 <i class="bi bi-graph-up me-2"></i>
                 <span>Sales Summary</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('customer_performance_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/customer_performance_report.php">
                 <i class="bi bi-person-badge me-2"></i>
                 <span>Customer Performance</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('installment_analysis_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/installment_analysis_report.php">
                 <i class="bi bi-calendar-check me-2"></i>
                 <span>Installment Analysis</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('overdue_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/overdue_report.php">
                 <i class="bi bi-exclamation-triangle me-2"></i>
                 <span>Overdue Analysis</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('product_performance_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/product_performance_report.php">
                 <i class="bi bi-box-seam me-2"></i>
                 <span>Product Performance</span>
               </a>
             </li>
+            <?php endif; ?>
 
             <!-- Rent Reports -->
             <li class="nav-item mt-2">
@@ -205,36 +240,46 @@ if (isset($_GET['error'])) {
                 <span>Rent Reports</span>
               </a>
             </li>
+            <?php if (check_permission('rent_summary_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_summary_report.php">
                 <i class="bi bi-house-gear me-2"></i>
                 <span>Rent Summary</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('rent_customer_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_customer_report.php">
                 <i class="bi bi-people me-2"></i>
                 <span>Rent Customer Analysis</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('rent_payment_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_payment_report.php">
                 <i class="bi bi-credit-card me-2"></i>
                 <span>Rent Payment Tracking</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('rental_profitability_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rental_profitability_report.php">
                 <i class="bi bi-currency-dollar me-2"></i>
                 <span>Rental Profitability</span>
               </a>
             </li>
+            <?php endif; ?>
+            <?php if (check_permission('rental_utilization_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rental_utilization_report.php">
                 <i class="bi bi-calendar-range me-2"></i>
                 <span>Rental Utilization</span>
               </a>
             </li>
+            <?php endif; ?>
 
             <!-- Reports Dashboard -->
             <li class="nav-item mt-2">
@@ -246,6 +291,7 @@ if (isset($_GET['error'])) {
           </ul>
         </div>
       </li>
+      <?php endif; ?>
 
     </ul>
  

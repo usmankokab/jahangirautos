@@ -1,6 +1,6 @@
 <?php
-require_once '../config/db.php';
-require_once '../config/app.php';
+require_once 'db.php';
+require_once 'app.php';
 
 // First, check if super admin already exists
 $stmt = $conn->prepare("SELECT id FROM users WHERE username = 'superadmin'");
@@ -59,8 +59,8 @@ try {
 
     // 4. Add child modules for reports if they don't exist
     $conn->query("
-        INSERT IGNORE INTO modules (module_name, description, parent_id) 
-        SELECT 
+        INSERT IGNORE INTO modules (module_name, description, parent_id)
+        SELECT
             m.module_name,
             m.description,
             (SELECT id FROM modules WHERE module_name = 'reports') as parent_id
@@ -68,7 +68,13 @@ try {
             SELECT 'customer_performance' as module_name, 'Customer Performance Report' as description UNION ALL
             SELECT 'sales_summary', 'Sales Summary Report' UNION ALL
             SELECT 'rent_summary', 'Rent Summary Report' UNION ALL
-            SELECT 'installment_analysis', 'Installment Analysis Report'
+            SELECT 'installment_analysis', 'Installment Analysis Report' UNION ALL
+            SELECT 'overdue_report', 'Overdue Payments Report' UNION ALL
+            SELECT 'rental_utilization_report', 'Rental Utilization Report' UNION ALL
+            SELECT 'rental_profitability_report', 'Rental Profitability Report' UNION ALL
+            SELECT 'rent_payment_report', 'Rent Payment Report' UNION ALL
+            SELECT 'rent_customer_report', 'Rent Customer Report' UNION ALL
+            SELECT 'product_performance_report', 'Product Performance Report'
         ) as m
     ");
 

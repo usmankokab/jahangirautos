@@ -1,8 +1,10 @@
 <?php
 include '../config/db.php';
 include '../config/auth.php';
+include '../includes/permissions.php';
 
 $auth->requireLogin();
+require_permission_or_lock('rental_utilization_report', 'view');
 
 include '../includes/header.php';
 
