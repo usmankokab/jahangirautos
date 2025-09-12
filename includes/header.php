@@ -100,6 +100,7 @@ if (isset($_GET['error'])) {
     <ul class="nav flex-column px-2">
 
       <!-- Dashboard -->
+      <?php if (check_permission('dashboard', 'view')): ?>
       <li class="nav-item">
         <a
           class="nav-link <?= ($_SERVER['PHP_SELF'] == '/installment_app/index.php')?'active':'' ?>"
@@ -108,6 +109,7 @@ if (isset($_GET['error'])) {
           <span>Dashboard</span>
         </a>
       </li>
+      <?php endif; ?>
 
       <!-- Customers -->
       <?php if (check_permission('customers', 'view')): ?>
@@ -163,11 +165,11 @@ if (isset($_GET['error'])) {
                         check_permission('customer_performance', 'view') ||
                         check_permission('installment_analysis', 'view') ||
                         check_permission('overdue_report', 'view') ||
-                        check_permission('product_performance', 'view') ||
+                        check_permission('product_performance_report', 'view') ||
                         check_permission('rent_summary', 'view') ||
-                        check_permission('rent_customer', 'view') ||
-                        check_permission('rent_payment', 'view') ||
-                        check_permission('rental_profitability', 'view') ||
+                        check_permission('rent_customer_report', 'view') ||
+                        check_permission('rent_payment_report', 'view') ||
+                        check_permission('rental_profitability_report', 'view') ||
                         check_permission('rental_utilization_report', 'view');
       ?>
       <?php if ($hasReportAccess): ?>
@@ -224,7 +226,7 @@ if (isset($_GET['error'])) {
               </a>
             </li>
             <?php endif; ?>
-            <?php if (check_permission('product_performance', 'view')): ?>
+            <?php if (check_permission('product_performance_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/product_performance_report.php">
                 <i class="bi bi-box-seam me-2"></i>
@@ -248,7 +250,7 @@ if (isset($_GET['error'])) {
               </a>
             </li>
             <?php endif; ?>
-            <?php if (check_permission('rent_customer', 'view')): ?>
+            <?php if (check_permission('rent_customer_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_customer_report.php">
                 <i class="bi bi-people me-2"></i>
@@ -256,7 +258,7 @@ if (isset($_GET['error'])) {
               </a>
             </li>
             <?php endif; ?>
-            <?php if (check_permission('rent_payment', 'view')): ?>
+            <?php if (check_permission('rent_payment_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rent_payment_report.php">
                 <i class="bi bi-credit-card me-2"></i>
@@ -264,7 +266,7 @@ if (isset($_GET['error'])) {
               </a>
             </li>
             <?php endif; ?>
-            <?php if (check_permission('rental_profitability', 'view')): ?>
+            <?php if (check_permission('rental_profitability_report', 'view')): ?>
             <li class="nav-item">
               <a class="nav-link" href="<?= BASE_URL ?>/views/rental_profitability_report.php">
                 <i class="bi bi-currency-dollar me-2"></i>

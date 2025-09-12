@@ -12,9 +12,11 @@ include '../includes/header.php';
     <div class="d-flex justify-content-between mb-2">
       <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Product Catalog</h2>
       <div class="d-flex gap-2 no-print">
+        <?php if (check_permission('products', 'add')): ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
           <i class="bi bi-plus-circle"></i> Add Product
         </button>
+        <?php endif; ?>
         <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
       </div>
     </div>
@@ -150,15 +152,19 @@ include '../includes/header.php';
               <td><?= $row['installment_months'] ?></td>
               <td><?= $row['interest_rate'] ?></td>
               <td>
+                <?php if (check_permission('products', 'edit')): ?>
                 <a href="<?= BASE_URL ?>/views/edit_product.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Product">
                     <i class="bi bi-pencil-square"></i>
                 </a>
-                <a href="<?= BASE_URL ?>/actions/delete_product.php?id=<?= $row['id'] ?>" 
-                   class="btn btn-sm btn-outline-danger" 
+                <?php endif; ?>
+                <?php if (check_permission('products', 'delete')): ?>
+                <a href="<?= BASE_URL ?>/actions/delete_product.php?id=<?= $row['id'] ?>"
+                   class="btn btn-sm btn-outline-danger"
                    onclick="return confirm('Are you sure you want to delete this product?')"
                    title="Delete Product">
                     <i class="bi bi-trash"></i>
                 </a>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

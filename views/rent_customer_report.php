@@ -4,7 +4,7 @@ include '../config/auth.php';
 include '../includes/permissions.php';
 
 $auth->requireLogin();
-require_permission_or_lock('rent_customer', 'view');
+require_permission_or_lock('rent_customer_report', 'view');
 
 include '../includes/header.php';
 

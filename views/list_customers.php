@@ -11,9 +11,11 @@ include '../includes/header.php';
   <div class="d-flex justify-content-between mb-2">
     <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Customers</h2>
     <div class="d-flex gap-2 no-print">
+      <?php if (check_permission('customers', 'add')): ?>
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
         <i class="bi bi-person-plus"></i> Add Customer
       </button>
+      <?php endif; ?>
       <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
     </div>
   </div>
@@ -134,17 +136,21 @@ include '../includes/header.php';
           <td><?= htmlspecialchars($row['guarantor_2']) ?></td>
           <td class="text-center no-print">
             <div class="btn-group">
-              <button type="button" class="btn btn-sm btn-outline-primary" 
-                      onclick="editCustomer(<?= $row['id'] ?>)" 
+              <?php if (check_permission('customers', 'edit')): ?>
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                      onclick="editCustomer(<?= $row['id'] ?>)"
                       title="Edit Customer">
                 <i class="bi bi-pencil"></i>
               </button>
-              <a href="<?= BASE_URL ?>/actions/delete_customer.php?id=<?= $row['id'] ?>" 
-                 class="btn btn-sm btn-outline-danger" 
+              <?php endif; ?>
+              <?php if (check_permission('customers', 'delete')): ?>
+              <a href="<?= BASE_URL ?>/actions/delete_customer.php?id=<?= $row['id'] ?>"
+                 class="btn btn-sm btn-outline-danger"
                  onclick="return confirm('Are you sure you want to delete this customer?')"
                  title="Delete Customer">
                 <i class="bi bi-trash"></i>
               </a>
+              <?php endif; ?>
             </div>
           </td>
         </tr>

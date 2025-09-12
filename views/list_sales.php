@@ -100,9 +100,11 @@ $total_pages_default = ceil($total_records / 20);
   <div class="d-flex justify-content-between mb-2">
     <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Sales Records</h2>
     <div class="d-flex gap-2 no-print">
+      <?php if (check_permission('sales', 'add')): ?>
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSaleModal">
         <i class="bi bi-plus-circle"></i> Add Sale
       </button>
+      <?php endif; ?>
       <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
       <?php if ($total_pages_default > 1): ?>
       <button class="btn btn-outline-secondary" onclick="printAllRecords()"><i class="bi bi-printer"></i> Print All</button>
@@ -207,22 +209,26 @@ $total_pages_default = ceil($total_records / 20);
         <td><?= number_format($r['monthly_installment'],0) ?></td>
         <td><?= $r['months'] ?></td>
         <td class="text-center no-print">
-          <button type="button" class="btn btn-sm btn-outline-primary" 
-                  onclick="editSale(<?= $r['id'] ?>)" 
+          <?php if (check_permission('sales', 'edit')): ?>
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  onclick="editSale(<?= $r['id'] ?>)"
                   title="Edit Sale">
             <i class="bi bi-pencil"></i>
           </button>
+          <?php endif; ?>
           <a href="<?= BASE_URL ?>/views/view_installments.php?sale_id=<?= $r['id'] ?>"
              class="btn btn-sm btn-outline-info"
              title="View Installments">
             <i class="bi bi-eye"></i>
           </a>
+          <?php if (check_permission('sales', 'delete')): ?>
           <a href="<?= BASE_URL ?>/actions/delete_sale.php?sale_id=<?= $r['id'] ?>"
              class="btn btn-sm btn-outline-danger"
              onclick="return confirm('Are you sure you want to delete this sale? This will also delete all associated installments.')"
              title="Delete Sale">
             <i class="bi bi-trash"></i>
           </a>
+          <?php endif; ?>
         </td>
       </tr>
 <?php endforeach; ?>
@@ -544,27 +550,32 @@ function editSale(id) {
   fetch(`<?= BASE_URL ?>/actions/get_sale.php?id=${id}`)
     .then(response => response.json())
     .then(data => {
-      document.getElementById('editSaleId').value = data.id;
-      document.getElementById('editCustomerId').value = data.customer_id;
-      document.getElementById('editProductSelect').value = data.product_id;
-      document.getElementById('editPrice').value = data.total_amount;
-      document.getElementById('editOriginalPrice').value = data.total_amount;
-      document.getElementById('editMonths').value = data.months;
-      document.getElementById('editOriginalMonths').value = data.months;
-      document.getElementById('editRate').value = data.interest_rate;
-      document.getElementById('editOriginalRate').value = data.interest_rate;
-      document.getElementById('editDownPayment').value = data.down_payment;
-      document.getElementById('editMonthlyInstallment').value = data.monthly_installment;
-      
-      // Set model from selected product
-      let selectedOption = document.querySelector(`#editProductSelect option[value="${data.product_id}"]`);
-      if (selectedOption) {
-        document.getElementById('editModel').value = selectedOption.dataset.model || '';
+      if (data.success) {
+        const sale = data.sale;
+        document.getElementById('editSaleId').value = sale.id;
+        document.getElementById('editCustomerId').value = sale.customer_id;
+        document.getElementById('editProductSelect').value = sale.product_id;
+        document.getElementById('editPrice').value = sale.total_amount;
+        document.getElementById('editOriginalPrice').value = sale.total_amount;
+        document.getElementById('editMonths').value = sale.months;
+        document.getElementById('editOriginalMonths').value = sale.months;
+        document.getElementById('editRate').value = sale.interest_rate;
+        document.getElementById('editOriginalRate').value = sale.interest_rate;
+        document.getElementById('editDownPayment').value = sale.down_payment;
+        document.getElementById('editMonthlyInstallment').value = sale.monthly_installment;
+
+        // Set model from selected product
+        let selectedOption = document.querySelector(`#editProductSelect option[value="${sale.product_id}"]`);
+        if (selectedOption) {
+          document.getElementById('editModel').value = selectedOption.dataset.model || '';
+        }
+
+        calculateEditMonthlyInstallment();
+
+        new bootstrap.Modal(document.getElementById('editSaleModal')).show();
+      } else {
+        alert('Error loading sale data: ' + (data.error || 'Unknown error'));
       }
-      
-      calculateEditMonthlyInstallment();
-      
-      new bootstrap.Modal(document.getElementById('editSaleModal')).show();
     })
     .catch(error => {
       console.error('Error:', error);

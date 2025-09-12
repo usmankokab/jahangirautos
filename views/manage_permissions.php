@@ -186,6 +186,12 @@ include '../includes/header.php';
                             </h6>
                             <small>Essential system functionality</small>
                         </div>
+                        <div class="alert alert-light border-0 rounded-0 mb-0">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Note:</strong> Add, Edit, and Delete permissions are automatically enabled/disabled based on View permission.
+                            </small>
+                        </div>
                         <div class="card-body" style="max-height: 600px; overflow-y: auto;">
                             <?php
                             // Get only core modules (no parent_id and not reports)
@@ -225,12 +231,13 @@ include '../includes/header.php';
                                             <input class="form-check-input" type="checkbox" id="view_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][view]"
                                                    onchange="toggleModulePermissions(<?= $module['id'] ?>, this.checked)"
                                                    <?= ($current_perm && $current_perm['can_view']) ? 'checked' : '' ?>>
-                                            <label class="form-check-label fw-bold" for="view_<?= $module['id'] ?>">
+                                            <label class="form-check-label fw-bold" for="view_<?= $module['id'] ?>" data-bs-toggle="tooltip" title="Checking this enables Add, Edit, and Delete permissions below">
                                                 <i class="bi bi-eye me-1"></i>View
                                             </label>
                                         </div>
                                     </div>
 
+                                    <?php if ($module['module_name'] !== 'dashboard'): ?>
                                     <div class="row g-2">
                                         <div class="col-4">
                                             <div class="form-check">
@@ -263,6 +270,12 @@ include '../includes/header.php';
                                             </div>
                                         </div>
                                     </div>
+                                    <?php else: ?>
+                                    <div class="text-muted small mt-2">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Dashboard only requires view permission
+                                    </div>
+                                    <?php endif; ?>
 
                                     <div class="mt-2">
                                         <button type="button" class="btn btn-sm btn-outline-secondary btn-sm me-1" onclick="selectAllPermissions(<?= $module['id'] ?>)">
@@ -290,6 +303,12 @@ include '../includes/header.php';
                                 <i class="bi bi-bar-chart-line me-2"></i>Reports & Analytics
                             </h6>
                             <small>Access to reporting and analytical tools</small>
+                        </div>
+                        <div class="alert alert-light border-0 rounded-0 mb-0">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Note:</strong> Individual report access can be granted below.
+                            </small>
                         </div>
                         <div class="card-body" style="max-height: 600px; overflow-y: auto;">
                             <?php
@@ -320,7 +339,7 @@ include '../includes/header.php';
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="view_<?= $reports_module['id'] ?>" name="permissions[<?= $reports_module['id'] ?>][view]"
                                                    <?= (isset($current_permissions[$reports_module['id']]) && $current_permissions[$reports_module['id']]['can_view']) ? 'checked' : '' ?>>
-                                            <label class="form-check-label fw-bold" for="view_<?= $reports_module['id'] ?>">
+                                            <label class="form-check-label fw-bold" for="view_<?= $reports_module['id'] ?>" data-bs-toggle="tooltip" title="Checking this enables access to all reports">
                                                 <i class="bi bi-eye me-1"></i>Access
                                             </label>
                                         </div>
@@ -338,7 +357,7 @@ include '../includes/header.php';
                                     return in_array($report['module_name'], [
                                         'sales_summary',
                                         'customer_performance',
-                                        'product_performance',
+                                        'product_performance_report',
                                         'installment_analysis',
                                         'overdue_report'
                                     ]);
@@ -350,7 +369,7 @@ include '../includes/header.php';
                                     switch($report['module_name']) {
                                         case 'sales_summary': $report_icon = 'bi-receipt'; $report_color = 'primary'; break;
                                         case 'customer_performance': $report_icon = 'bi-people'; $report_color = 'info'; break;
-                                        case 'product_performance': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
+                                        case 'product_performance_report': $report_icon = 'bi-box-seam'; $report_color = 'secondary'; break;
                                         case 'installment_analysis': $report_icon = 'bi-calendar-check'; $report_color = 'warning'; break;
                                         case 'overdue_report': $report_icon = 'bi-exclamation-triangle'; $report_color = 'danger'; break;
                                         default: $report_icon = 'bi-file-earmark-text'; $report_color = 'primary';
@@ -395,9 +414,9 @@ include '../includes/header.php';
                                     return in_array($report['module_name'], [
                                         'rent_summary',
                                         'rental_utilization_report',
-                                        'rental_profitability',
-                                        'rent_payment',
-                                        'rent_customer'
+                                        'rental_profitability_report',
+                                        'rent_payment_report',
+                                        'rent_customer_report'
                                     ]);
                                 });
 
@@ -407,9 +426,9 @@ include '../includes/header.php';
                                     switch($report['module_name']) {
                                         case 'rent_summary': $report_icon = 'bi-calendar-event'; $report_color = 'secondary'; break;
                                         case 'rental_utilization_report': $report_icon = 'bi-bar-chart-line'; $report_color = 'info'; break;
-                                        case 'rental_profitability': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
-                                        case 'rent_payment': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
-                                        case 'rent_customer': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
+                                        case 'rental_profitability_report': $report_icon = 'bi-graph-up'; $report_color = 'success'; break;
+                                        case 'rent_payment_report': $report_icon = 'bi-cash-stack'; $report_color = 'warning'; break;
+                                        case 'rent_customer_report': $report_icon = 'bi-person-lines-fill'; $report_color = 'primary'; break;
                                         default: $report_icon = 'bi-file-earmark-text'; $report_color = 'secondary';
                                     }
 
@@ -499,6 +518,14 @@ include '../includes/header.php';
 <script>
 // Permission management functions
 function toggleModulePermissions(moduleId, isChecked) {
+    // Skip add/edit/delete permissions for dashboard module
+    const viewCheckbox = document.getElementById(`view_${moduleId}`);
+    if (viewCheckbox && viewCheckbox.closest('.card-body').querySelector('h6').textContent.trim() === 'Dashboard') {
+        // Dashboard only has view permission, no need to toggle others
+        updatePermissionSummary();
+        return;
+    }
+
     const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
     modulePermissions.forEach(cb => {
         cb.checked = isChecked;
@@ -509,6 +536,14 @@ function toggleModulePermissions(moduleId, isChecked) {
 
 function selectAllPermissions(moduleId) {
     document.getElementById(`view_${moduleId}`).checked = true;
+
+    // Skip add/edit/delete permissions for dashboard module
+    const viewCheckbox = document.getElementById(`view_${moduleId}`);
+    if (viewCheckbox && viewCheckbox.closest('.card-body').querySelector('h6').textContent.trim() === 'Dashboard') {
+        updatePermissionSummary();
+        return;
+    }
+
     const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
     modulePermissions.forEach(cb => {
         cb.checked = true;
@@ -525,10 +560,20 @@ function selectViewOnlyPermissions(moduleId) {
         cb.disabled = false;
     });
     updatePermissionSummary();
+    // Trigger the toggle function to ensure proper state
+    toggleModulePermissions(moduleId, true);
 }
 
 function clearModulePermissions(moduleId) {
     document.getElementById(`view_${moduleId}`).checked = false;
+
+    // Skip add/edit/delete permissions for dashboard module
+    const viewCheckbox = document.getElementById(`view_${moduleId}`);
+    if (viewCheckbox && viewCheckbox.closest('.card-body').querySelector('h6').textContent.trim() === 'Dashboard') {
+        updatePermissionSummary();
+        return;
+    }
+
     const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
     modulePermissions.forEach(cb => {
         cb.checked = false;
@@ -588,6 +633,9 @@ function updatePermissionSummary() {
 
 // Initialize tooltips and permission summary on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all module permissions based on current view state
+    initializeModulePermissions();
+
     updatePermissionSummary();
 
     // Initialize tooltips
@@ -611,6 +659,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Initialize module permissions on page load
+function initializeModulePermissions() {
+    // Get all view checkboxes
+    const viewCheckboxes = document.querySelectorAll('#permissionsForm input[id^="view_"]');
+
+    viewCheckboxes.forEach(viewCb => {
+        const moduleId = viewCb.id.split('_')[1];
+        const isChecked = viewCb.checked;
+
+        // Skip add/edit/delete permissions for dashboard module
+        if (viewCb.closest('.card-body').querySelector('h6').textContent.trim() === 'Dashboard') {
+            return; // Dashboard only has view permission
+        }
+
+        // Apply the same logic as toggleModulePermissions
+        const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+        modulePermissions.forEach(cb => {
+            cb.disabled = !isChecked;
+            if (!isChecked) {
+                cb.checked = false; // Uncheck if view is not selected
+            }
+        });
+    });
+}
 </script>
 
 <style>
@@ -635,8 +708,33 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .permissions-page .form-check-input:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
+    background-color: #f8f9fa !important;
+}
+
+.permissions-page .form-check-input:disabled + label {
+    color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.permissions-page .form-check-input:not(:disabled) + label {
+    color: #212529;
+    cursor: pointer;
+    opacity: 1;
+}
+
+/* Add transition for smooth state changes */
+.permissions-page .form-check-input,
+.permissions-page .form-check-input + label {
+    transition: all 0.2s ease;
+}
+
+/* Highlight enabled permissions */
+.permissions-page .form-check-input:not(:disabled):checked + label {
+    color: #0d6efd;
+    font-weight: 500;
 }
 
 .permissions-page .btn-group .btn {

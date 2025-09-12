@@ -84,9 +84,11 @@ $total_pages_default = ceil($total_records / 20);
   <div class="d-flex justify-content-between mb-2">
     <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Rent Records</h2>
     <div class="d-flex gap-2 no-print">
+      <?php if (check_permission('rents', 'add')): ?>
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRentModal">
         <i class="bi bi-plus-circle"></i> Add Rent
       </button>
+      <?php endif; ?>
       <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
       <?php if ($total_pages_default > 1): ?>
       <button class="btn btn-outline-secondary" onclick="printAllRecords()"><i class="bi bi-printer"></i> Print All</button>
@@ -192,17 +194,21 @@ $total_pages_default = ceil($total_records / 20);
         <td><?= number_format($r['total_paid'], 0) ?></td>
         <td><?= number_format($due - $r['total_paid'], 0) ?></td>
         <td class="text-center no-print">
-          <button type="button" class="btn btn-sm btn-outline-primary" 
-                  onclick="editRent(<?= $r['id'] ?>)" 
+          <?php if (check_permission('rents', 'edit')): ?>
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  onclick="editRent(<?= $r['id'] ?>)"
                   title="Edit Rent">
             <i class="bi bi-pencil"></i>
           </button>
+          <?php endif; ?>
           <a href="view_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-info" title="View Rent">
             <i class="bi bi-eye"></i>
           </a>
+          <?php if (check_permission('rents', 'delete')): ?>
           <a href="../actions/delete_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this rent record?')" title="Delete Rent">
             <i class="bi bi-trash"></i>
           </a>
+          <?php endif; ?>
         </td>
       </tr>
 <?php endforeach; ?>
@@ -422,19 +428,24 @@ function editRent(id) {
   fetch(`<?= BASE_URL ?>/actions/get_rent.php?id=${id}`)
     .then(response => response.json())
     .then(data => {
-      document.getElementById('editRentId').value = data.id;
-      document.getElementById('editCustomerId').value = data.customer_id;
-      document.getElementById('editProductName').value = data.product_name;
-      document.getElementById('editRentType').value = data.rent_type;
-      document.getElementById('editDailyRent').value = data.daily_rent || '';
-      document.getElementById('editTotalRent').value = data.total_rent || '';
-      document.getElementById('editStartDate').value = data.start_date;
-      document.getElementById('editEndDate').value = data.end_date;
-      document.getElementById('editComments').value = data.comments || '';
-      
-      toggleEditRentType();
-      
-      new bootstrap.Modal(document.getElementById('editRentModal')).show();
+      if (data.success) {
+        const rent = data.rent;
+        document.getElementById('editRentId').value = rent.id;
+        document.getElementById('editCustomerId').value = rent.customer_id;
+        document.getElementById('editProductName').value = rent.product_name;
+        document.getElementById('editRentType').value = rent.rent_type;
+        document.getElementById('editDailyRent').value = rent.daily_rent || '';
+        document.getElementById('editTotalRent').value = rent.total_rent || '';
+        document.getElementById('editStartDate').value = rent.start_date;
+        document.getElementById('editEndDate').value = rent.end_date;
+        document.getElementById('editComments').value = rent.comments || '';
+
+        toggleEditRentType();
+
+        new bootstrap.Modal(document.getElementById('editRentModal')).show();
+      } else {
+        alert('Error loading rent data: ' + (data.error || 'Unknown error'));
+      }
     })
     .catch(error => {
       console.error('Error:', error);

@@ -484,9 +484,15 @@ include '../includes/header.php';
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">&nbsp;</label>
+                                                <?php if (check_permission('users', 'add')): ?>
                                                 <button type="submit" class="btn btn-success w-100">
                                                     <i class="bi bi-person-plus me-2"></i>Create User
                                                 </button>
+                                                <?php else: ?>
+                                                <button type="button" class="btn btn-secondary w-100" disabled title="You don't have permission to create users">
+                                                    <i class="bi bi-person-plus me-2"></i>Create User
+                                                </button>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </form>
@@ -535,17 +541,29 @@ include '../includes/header.php';
                                                     <td>
                                                         <?php if ($can_manage): ?>
                                                             <div class="d-flex gap-1" role="group">
+                                                                <?php if (check_permission('users', 'edit')): ?>
                                                                 <a href="<?= BASE_URL ?>/views/manage_permissions.php?user_id=<?= $user['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Permissions">
                                                                     <i class="bi bi-gear"></i>
                                                                 </a>
+                                                                <?php else: ?>
+                                                                <button class="btn btn-sm btn-outline-secondary" disabled title="You don't have permission to edit user permissions">
+                                                                    <i class="bi bi-gear"></i>
+                                                                </button>
+                                                                <?php endif; ?>
                                                                 <button class="btn btn-sm btn-outline-secondary" onclick="changePassword(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Change Password">
                                                                     <i class="bi bi-key"></i>
                                                                 </button>
+                                                                <?php if (check_permission('users', 'delete')): ?>
                                                                 <button class="btn btn-sm <?= $user['is_active'] ? 'btn-outline-warning' : 'btn-outline-success' ?>"
                                                                         onclick="toggleUserStatus(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>', <?= $user['is_active'] ? 1 : 0 ?>)"
                                                                         title="<?= $user['is_active'] ? 'Deactivate User' : 'Activate User' ?>">
                                                                     <i class="bi bi-<?= $user['is_active'] ? 'person-dash' : 'person-check' ?>"></i>
                                                                 </button>
+                                                                <?php else: ?>
+                                                                <button class="btn btn-sm btn-outline-secondary" disabled title="You don't have permission to deactivate users">
+                                                                    <i class="bi bi-person-dash"></i>
+                                                                </button>
+                                                                <?php endif; ?>
                                                                 <?php if ($current_user['role_name'] === 'super_admin' && $user['id'] != $_SESSION['user_id']): ?>
                                                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(<?= $user['id'] ?>, '<?= htmlspecialchars($user['username']) ?>')" title="Delete User">
                                                                         <i class="bi bi-trash"></i>
