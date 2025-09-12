@@ -201,9 +201,11 @@ $total_pages_default = ceil($total_records / 20);
             <i class="bi bi-pencil"></i>
           </button>
           <?php endif; ?>
+          <?php if (check_permission('view_rent', 'view')): ?>
           <a href="view_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-info" title="View Rent">
             <i class="bi bi-eye"></i>
           </a>
+          <?php endif; ?>
           <?php if (check_permission('rents', 'delete')): ?>
           <a href="../actions/delete_rent.php?rent_id=<?= $r['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this rent record?')" title="Delete Rent">
             <i class="bi bi-trash"></i>

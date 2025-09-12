@@ -53,11 +53,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $conn->close();
 
-    // Redirect based on result
+    // Handle response based on request type
     if ($success) {
-        header('Location: ' . BASE_URL . '/views/list_customers.php?success=' . urlencode('Customer added successfully'));
+        // Check if this is an AJAX request
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            // Return JSON response for AJAX
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Customer added successfully'
+            ]);
+        } else {
+            // Regular form submission - redirect
+            header('Location: ' . BASE_URL . '/views/list_customers.php?success=' . urlencode('Customer added successfully'));
+        }
     } else {
-        header('Location: ' . BASE_URL . '/views/add_customer.php?error=' . urlencode('Failed to add customer'));
+        // Check if this is an AJAX request
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            // Return JSON response for AJAX
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to add customer'
+            ]);
+        } else {
+            // Regular form submission - redirect
+            header('Location: ' . BASE_URL . '/views/add_customer.php?error=' . urlencode('Failed to add customer'));
+        }
     }
     exit();
 } else {

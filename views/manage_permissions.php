@@ -577,24 +577,54 @@ function selectAllPermissions(moduleId) {
         return;
     }
 
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = true;
-        cb.disabled = false;
-    });
+    // Handle View Installments and View Rent modules specially
+    const moduleCard = viewCheckbox.closest('.card-body');
+    const moduleTitle = moduleCard.querySelector('h6').textContent.trim();
+
+    if (moduleTitle === 'View Installments' || moduleTitle === 'View Rent') {
+        // Check Paid Amount and Save checkboxes
+        const paidAmountCheckbox = document.getElementById(`paid_amount_${moduleId}`);
+        const saveCheckbox = document.getElementById(`save_${moduleId}`);
+
+        if (paidAmountCheckbox) paidAmountCheckbox.checked = true;
+        if (saveCheckbox) saveCheckbox.checked = true;
+    } else {
+        // Handle regular modules with add/edit/delete permissions
+        const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+        modulePermissions.forEach(cb => {
+            cb.checked = true;
+            cb.disabled = false;
+        });
+    }
     updatePermissionSummary();
 }
 
 function selectViewOnlyPermissions(moduleId) {
     document.getElementById(`view_${moduleId}`).checked = true;
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = false;
-        cb.disabled = false;
-    });
+
+    // Handle View Installments and View Rent modules specially
+    const viewCheckbox = document.getElementById(`view_${moduleId}`);
+    const moduleCard = viewCheckbox.closest('.card-body');
+    const moduleTitle = moduleCard.querySelector('h6').textContent.trim();
+
+    if (moduleTitle === 'View Installments' || moduleTitle === 'View Rent') {
+        // For View Installments and View Rent: check View, uncheck Paid Amount and Save
+        const paidAmountCheckbox = document.getElementById(`paid_amount_${moduleId}`);
+        const saveCheckbox = document.getElementById(`save_${moduleId}`);
+
+        if (paidAmountCheckbox) paidAmountCheckbox.checked = false;
+        if (saveCheckbox) saveCheckbox.checked = false;
+    } else {
+        // Handle regular modules with add/edit/delete permissions
+        const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+        modulePermissions.forEach(cb => {
+            cb.checked = false;
+            cb.disabled = false;
+        });
+        // Trigger the toggle function to ensure proper state
+        toggleModulePermissions(moduleId, true);
+    }
     updatePermissionSummary();
-    // Trigger the toggle function to ensure proper state
-    toggleModulePermissions(moduleId, true);
 }
 
 function clearModulePermissions(moduleId) {
@@ -607,11 +637,25 @@ function clearModulePermissions(moduleId) {
         return;
     }
 
-    const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-    modulePermissions.forEach(cb => {
-        cb.checked = false;
-        cb.disabled = true;
-    });
+    // Handle View Installments and View Rent modules specially
+    const moduleCard = viewCheckbox.closest('.card-body');
+    const moduleTitle = moduleCard.querySelector('h6').textContent.trim();
+
+    if (moduleTitle === 'View Installments' || moduleTitle === 'View Rent') {
+        // Uncheck Paid Amount and Save checkboxes
+        const paidAmountCheckbox = document.getElementById(`paid_amount_${moduleId}`);
+        const saveCheckbox = document.getElementById(`save_${moduleId}`);
+
+        if (paidAmountCheckbox) paidAmountCheckbox.checked = false;
+        if (saveCheckbox) saveCheckbox.checked = false;
+    } else {
+        // Handle regular modules with add/edit/delete permissions
+        const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+        modulePermissions.forEach(cb => {
+            cb.checked = false;
+            cb.disabled = true;
+        });
+    }
     updatePermissionSummary();
 }
 
@@ -707,14 +751,24 @@ function initializeModulePermissions() {
             return; // Dashboard only has view permission
         }
 
-        // Apply the same logic as toggleModulePermissions
-        const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
-        modulePermissions.forEach(cb => {
-            cb.disabled = !isChecked;
-            if (!isChecked) {
-                cb.checked = false; // Uncheck if view is not selected
-            }
-        });
+        // Handle View Installments and View Rent modules specially
+        const moduleCard = viewCb.closest('.card-body');
+        const moduleTitle = moduleCard.querySelector('h6').textContent.trim();
+
+        if (moduleTitle === 'View Installments' || moduleTitle === 'View Rent') {
+            // For View Installments and View Rent modules, no special initialization needed
+            // The Paid Amount and Save checkboxes are independent of the View checkbox
+            return;
+        } else {
+            // Apply the same logic as toggleModulePermissions for regular modules
+            const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
+            modulePermissions.forEach(cb => {
+                cb.disabled = !isChecked;
+                if (!isChecked) {
+                    cb.checked = false; // Uncheck if view is not selected
+                }
+            });
+        }
     });
 }
 </script>

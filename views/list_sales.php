@@ -216,11 +216,13 @@ $total_pages_default = ceil($total_records / 20);
             <i class="bi bi-pencil"></i>
           </button>
           <?php endif; ?>
+          <?php if (check_permission('view_installments', 'view')): ?>
           <a href="<?= BASE_URL ?>/views/view_installments.php?sale_id=<?= $r['id'] ?>"
              class="btn btn-sm btn-outline-info"
              title="View Installments">
             <i class="bi bi-eye"></i>
           </a>
+          <?php endif; ?>
           <?php if (check_permission('sales', 'delete')): ?>
           <a href="<?= BASE_URL ?>/actions/delete_sale.php?sale_id=<?= $r['id'] ?>"
              class="btn btn-sm btn-outline-danger"

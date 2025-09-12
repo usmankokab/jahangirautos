@@ -219,7 +219,11 @@ include '../includes/header.php';
             </div>
             <div class="col-md-6">
               <label class="form-label">CNIC *</label>
-              <input type="text" name="cnic" class="form-control" required>
+              <input type="text" name="cnic" id="addCustomerCnic" class="form-control" required
+                     pattern="^\d{5}-\d{7}-\d{1}$"
+                     placeholder="XXXXX-XXXXXXX-X"
+                     maxlength="15"
+                     title="CNIC must be in format: XXXXX-XXXXXXX-X">
             </div>
             <div class="col-md-6">
               <label class="form-label">Phone *</label>
@@ -266,7 +270,11 @@ include '../includes/header.php';
             </div>
             <div class="col-md-6">
               <label class="form-label">CNIC *</label>
-              <input type="text" name="cnic" id="editCustomerCnic" class="form-control" required>
+              <input type="text" name="cnic" id="editCustomerCnic" class="form-control" required
+                     pattern="^\d{5}-\d{7}-\d{1}$"
+                     placeholder="XXXXX-XXXXXXX-X"
+                     maxlength="15"
+                     title="CNIC must be in format: XXXXX-XXXXXXX-X">
             </div>
             <div class="col-md-6">
               <label class="form-label">Phone *</label>
@@ -296,12 +304,60 @@ include '../includes/header.php';
 </div>
 
 <script>
+// CNIC validation and formatting functions
+function formatCNIC(input) {
+  // Remove all non-digits
+  let value = input.value.replace(/\D/g, '');
+
+  // Limit to 13 digits
+  if (value.length > 13) {
+    value = value.substring(0, 13);
+  }
+
+  // Format as XXXXX-XXXXXXX-X
+  if (value.length >= 6) {
+    value = value.substring(0, 5) + '-' + value.substring(5);
+  }
+  if (value.length >= 14) {
+    value = value.substring(0, 13) + '-' + value.substring(13);
+  }
+
+  input.value = value;
+}
+
+function validateCNIC(cnic) {
+  const cnicPattern = /^\d{5}-\d{7}-\d{1}$/;
+  return cnicPattern.test(cnic);
+}
+
+// Add CNIC formatting to both modals
+document.getElementById('addCustomerCnic').addEventListener('input', function() {
+  formatCNIC(this);
+});
+
+document.getElementById('editCustomerCnic').addEventListener('input', function() {
+  formatCNIC(this);
+});
+
 document.getElementById('addCustomerForm').addEventListener('submit', function(e) {
+  const cnicField = document.getElementById('addCustomerCnic');
+  const cnicValue = cnicField.value;
+
+  if (!validateCNIC(cnicValue)) {
+    e.preventDefault();
+    alert('Please enter a valid CNIC in the format: XXXXX-XXXXXXX-X');
+    cnicField.focus();
+    return;
+  }
+
   e.preventDefault();
   const formData = new FormData(this);
-  
-  fetch('<?= BASE_URL ?>/actions/add_customer.php', {
+
+  fetch('<?= BASE_URL ?>/actions/insert_customer.php', {
     method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    },
     body: formData
   })
   .then(response => response.json())
@@ -341,11 +397,24 @@ function editCustomer(id) {
 }
 
 document.getElementById('editCustomerForm').addEventListener('submit', function(e) {
+  const cnicField = document.getElementById('editCustomerCnic');
+  const cnicValue = cnicField.value;
+
+  if (!validateCNIC(cnicValue)) {
+    e.preventDefault();
+    alert('Please enter a valid CNIC in the format: XXXXX-XXXXXXX-X');
+    cnicField.focus();
+    return;
+  }
+
   e.preventDefault();
   const formData = new FormData(this);
-  
-  fetch('<?= BASE_URL ?>/actions/edit_customer.php', {
+
+  fetch('<?= BASE_URL ?>/actions/update_customer.php', {
     method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    },
     body: formData
   })
   .then(response => response.json())

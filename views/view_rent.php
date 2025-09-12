@@ -60,7 +60,7 @@ if ($rent['rent_type'] === 'daily') {
         <input type="hidden" name="rent_id" value="<?= htmlspecialchars($rent_id) ?>">
         <div class="col-md-4">
           <label class="form-label">Status</label>
-          <select name="status" class="form-select">
+          <select name="status" class="form-select" <?= check_permission('view_rent', 'view') ? '' : 'disabled' ?>>
             <option value="">All Status</option>
             <option value="unpaid" <?= (isset($_GET['status']) && $_GET['status']==='unpaid')?'selected':'' ?>>Unpaid</option>
             <option value="partial" <?= (isset($_GET['status']) && $_GET['status']==='partial')?'selected':'' ?>>Partial</option>
@@ -69,13 +69,13 @@ if ($rent['rent_type'] === 'daily') {
         </div>
         <div class="col-md-4">
           <label class="form-label">Date</label>
-          <input type="date" name="filter_date" class="form-control" value="<?= isset($_GET['filter_date']) ? htmlspecialchars($_GET['filter_date']) : '' ?>">
+          <input type="date" name="filter_date" class="form-control" value="<?= isset($_GET['filter_date']) ? htmlspecialchars($_GET['filter_date']) : '' ?>" <?= check_permission('view_rent', 'view') ? '' : 'disabled' ?>>
         </div>
         <div class="col-md-4">
           <label class="form-label">&nbsp;</label>
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="?rent_id=<?= htmlspecialchars($rent_id) ?>" class="btn btn-secondary">Clear</a>
+            <button type="submit" class="btn btn-primary" <?= check_permission('view_rent', 'view') ? '' : 'disabled' ?>>Filter</button>
+            <a href="?rent_id=<?= htmlspecialchars($rent_id) ?>" class="btn btn-secondary" <?= check_permission('view_rent', 'view') ? '' : 'style="pointer-events: none; opacity: 0.5;" onclick="return false;"' ?>>Clear</a>
           </div>
         </div>
       </form>

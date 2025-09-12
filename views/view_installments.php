@@ -100,7 +100,7 @@ $sumQ->close();
         <input type="hidden" name="sale_id" value="<?= htmlspecialchars($sale_id) ?>">
         <div class="col-md-3">
           <label class="form-label">Status</label>
-          <select name="status" class="form-select">
+          <select name="status" class="form-select" <?= check_permission('view_installments', 'view') ? '' : 'disabled' ?>>
             <option value="">All Status</option>
             <option value="unpaid" <?= (isset($_GET['status']) && $_GET['status']==='unpaid')?'selected':'' ?>>Unpaid</option>
             <option value="partial" <?= (isset($_GET['status']) && $_GET['status']==='partial')?'selected':'' ?>>Partial</option>
@@ -109,17 +109,17 @@ $sumQ->close();
         </div>
         <div class="col-md-3">
           <label class="form-label">From Date</label>
-          <input type="date" name="from_date" class="form-control" value="<?= isset($_GET['from_date']) ? htmlspecialchars($_GET['from_date']) : '' ?>">
+          <input type="date" name="from_date" class="form-control" value="<?= isset($_GET['from_date']) ? htmlspecialchars($_GET['from_date']) : '' ?>" <?= check_permission('view_installments', 'view') ? '' : 'disabled' ?>>
         </div>
         <div class="col-md-3">
           <label class="form-label">To Date</label>
-          <input type="date" name="to_date" class="form-control" value="<?= isset($_GET['to_date']) ? htmlspecialchars($_GET['to_date']) : '' ?>">
+          <input type="date" name="to_date" class="form-control" value="<?= isset($_GET['to_date']) ? htmlspecialchars($_GET['to_date']) : '' ?>" <?= check_permission('view_installments', 'view') ? '' : 'disabled' ?>>
         </div>
         <div class="col-md-3">
           <label class="form-label">&nbsp;</label>
           <div class="d-flex">
-            <a href="?sale_id=<?= htmlspecialchars($sale_id) ?>" class="btn btn-secondary me-2">Clear</a>
-            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="?sale_id=<?= htmlspecialchars($sale_id) ?>" class="btn btn-secondary me-2" <?= check_permission('view_installments', 'view') ? '' : 'style="pointer-events: none; opacity: 0.5;" onclick="return false;"' ?>>Clear</a>
+            <button type="submit" class="btn btn-primary" <?= check_permission('view_installments', 'view') ? '' : 'disabled' ?>>Filter</button>
           </div>
         </div>
       </form>

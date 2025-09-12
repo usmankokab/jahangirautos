@@ -63,9 +63,31 @@ $stmt = $conn->prepare($update);
 $stmt->bind_param("sssssssi", $name, $cnic, $phone, $address, $guarantor_1, $guarantor_2, $new_image_path, $id);
 
 if ($stmt->execute()) {
-    header('Location: ' . BASE_URL . '/views/list_customers.php?success=' . urlencode('Customer updated successfully'));
+    // Check if this is an AJAX request
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        // Return JSON response for AJAX
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => 'Customer updated successfully'
+        ]);
+    } else {
+        // Regular form submission - redirect
+        header('Location: ' . BASE_URL . '/views/list_customers.php?success=' . urlencode('Customer updated successfully'));
+    }
 } else {
-    header('Location: ' . BASE_URL . '/views/edit_customer.php?id=' . $id . '&error=' . urlencode('Failed to update customer'));
+    // Check if this is an AJAX request
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        // Return JSON response for AJAX
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to update customer'
+        ]);
+    } else {
+        // Regular form submission - redirect
+        header('Location: ' . BASE_URL . '/views/edit_customer.php?id=' . $id . '&error=' . urlencode('Failed to update customer'));
+    }
 }
 exit();
 ?>
