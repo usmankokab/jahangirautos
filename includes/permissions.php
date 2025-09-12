@@ -16,7 +16,7 @@ function check_permission($module, $action = 'view') {
     global $conn;
     try {
         $stmt = $conn->prepare("
-            SELECT up.can_view, up.can_add, up.can_edit, up.can_delete
+            SELECT up.can_view, up.can_add, up.can_edit, up.can_delete, up.can_paid_amount, up.can_save
             FROM user_permissions up
             INNER JOIN modules m ON up.module_id = m.id
             WHERE up.user_id = ? AND m.module_name = ?
@@ -32,6 +32,8 @@ function check_permission($module, $action = 'view') {
                 case 'add': $permission_value = $result['can_add']; break;
                 case 'edit': $permission_value = $result['can_edit']; break;
                 case 'delete': $permission_value = $result['can_delete']; break;
+                case 'paid_amount': $permission_value = $result['can_paid_amount']; break;
+                case 'save': $permission_value = $result['can_save']; break;
             }
 
             // Update session cache for future requests
@@ -92,7 +94,9 @@ function refresh_user_permissions($user_id = null) {
                 'view' => $perm['can_view'],
                 'add' => $perm['can_add'],
                 'edit' => $perm['can_edit'],
-                'delete' => $perm['can_delete']
+                'delete' => $perm['can_delete'],
+                'paid_amount' => $perm['can_paid_amount'],
+                'save' => $perm['can_save']
             ];
         }
 
@@ -121,7 +125,7 @@ function check_permission_with_fallback($module, $action = 'view') {
 
     try {
         $stmt = $conn->prepare("
-            SELECT up.can_view, up.can_add, up.can_edit, up.can_delete
+            SELECT up.can_view, up.can_add, up.can_edit, up.can_delete, up.can_paid_amount, up.can_save
             FROM user_permissions up
             INNER JOIN modules m ON up.module_id = m.id
             WHERE up.user_id = ? AND m.module_name = ?
@@ -137,6 +141,8 @@ function check_permission_with_fallback($module, $action = 'view') {
                 case 'add': $permission_value = $result['can_add']; break;
                 case 'edit': $permission_value = $result['can_edit']; break;
                 case 'delete': $permission_value = $result['can_delete']; break;
+                case 'paid_amount': $permission_value = $result['can_paid_amount']; break;
+                case 'save': $permission_value = $result['can_save']; break;
             }
 
             // Update session cache for future requests

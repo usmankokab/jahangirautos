@@ -41,6 +41,7 @@ CREATE TABLE user_permissions (
     can_add BOOLEAN DEFAULT false,
     can_edit BOOLEAN DEFAULT false,
     can_delete BOOLEAN DEFAULT false,
+    can_paid_amount BOOLEAN DEFAULT false,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
@@ -63,6 +64,8 @@ INSERT INTO modules (module_name, description) VALUES
 ('products', 'Product Management'),
 ('sales', 'Sales Management'),
 ('rents', 'Rent Management'),
+('view_installments', 'View Installments Access'),
+('view_rent', 'View Rent Details Access'),
 ('reports', 'Reports Access');
 
 -- Insert child modules for reports

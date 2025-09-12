@@ -54,6 +54,8 @@ try {
         ('products', 'Product Management'),
         ('sales', 'Sales Management'),
         ('rents', 'Rent Management'),
+        ('view_installments', 'View Installments Access'),
+        ('view_rent', 'View Rent Details Access'),
         ('reports', 'Reports Access')
     ");
 
@@ -79,14 +81,23 @@ try {
     ");
 
     // 5. Grant all permissions to super admin
-    $modules_result = $conn->query("SELECT id FROM modules");
+    $modules_result = $conn->query("SELECT id, module_name FROM modules");
     while ($module = $modules_result->fetch_assoc()) {
-        $stmt = $conn->prepare("
-            INSERT INTO user_permissions 
-            (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by) 
-            VALUES (?, ?, 1, 1, 1, 1, ?)
-        ");
-        $stmt->bind_param("iii", $user_id, $module['id'], $user_id);
+        // Special handling for view_installments and view_rent modules
+        if ($module['module_name'] === 'view_installments' || $module['module_name'] === 'view_rent') {
+            $stmt = $conn->prepare("
+                INSERT INTO user_permissions
+                (user_id, module_id, can_view, can_add, can_edit, can_delete, can_paid_amount, created_by)
+                VALUES (?, ?, 1, 0, 0, 0, 1, ?)
+            ");
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO user_permissions
+                (user_id, module_id, can_view, can_add, can_edit, can_delete, can_paid_amount, created_by)
+                VALUES (?, ?, 1, 1, 1, 1, 0, ?)
+            ");
+        }
+        $stmt->bind_param("iiii", $user_id, $module['id'], $user_id);
         $stmt->execute();
     }
 

@@ -45,8 +45,8 @@ if (!$can_manage) {
     exit();
 }
 
-// Get all available modules, excluding duplicates
-$modules_query = "SELECT * FROM modules WHERE id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13) ORDER BY parent_id, module_name";
+// Get all available modules, excluding duplicates but including view_installments and view_rent
+$modules_query = "SELECT * FROM modules WHERE id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13) OR module_name IN ('view_installments', 'view_rent') ORDER BY parent_id, module_name";
 $modules_result = $conn->query($modules_query);
 $modules = [];
 while ($module = $modules_result->fetch_assoc()) {
@@ -77,11 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_permissions'])
             $can_add = isset($perms['add']) ? 1 : 0;
             $can_edit = isset($perms['edit']) ? 1 : 0;
             $can_delete = isset($perms['delete']) ? 1 : 0;
+            $can_paid_amount = isset($perms['paid_amount']) ? 1 : 0;
+            $can_save = isset($perms['save']) ? 1 : 0;
 
             // Only insert if at least view permission is granted
-            if ($can_view || $can_add || $can_edit || $can_delete) {
-                $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-                $perm_stmt->bind_param("iiiiiii", $user_id, $module_id, $can_view, $can_add, $can_edit, $can_delete, $_SESSION['user_id']);
+            if ($can_view || $can_add || $can_edit || $can_delete || $can_paid_amount || $can_save) {
+                $perm_stmt = $conn->prepare("INSERT INTO user_permissions (user_id, module_id, can_view, can_add, can_edit, can_delete, can_paid_amount, can_save, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $perm_stmt->bind_param("iiiiiiiii", $user_id, $module_id, $can_view, $can_add, $can_edit, $can_delete, $can_paid_amount, $can_save, $_SESSION['user_id']);
                 $perm_stmt->execute();
                 $inserted_count++;
             }
@@ -210,6 +212,8 @@ include '../includes/header.php';
                                      case 'products': $module_icon = 'bi-box-seam'; $module_color = 'warning'; break;
                                      case 'sales': $module_icon = 'bi-receipt'; $module_color = 'danger'; break;
                                      case 'rents': $module_icon = 'bi-calendar-event'; $module_color = 'secondary'; break;
+                                     case 'view_installments': $module_icon = 'bi-eye'; $module_color = 'info'; $module['module_name'] = 'View Installments'; break;
+                                     case 'view_rent': $module_icon = 'bi-eye'; $module_color = 'secondary'; $module['module_name'] = 'View Rent'; break;
                                      default: $module_icon = 'bi-circle'; $module_color = 'primary';
                                  }
 
@@ -238,6 +242,34 @@ include '../includes/header.php';
                                     </div>
 
                                     <?php if ($module['module_name'] !== 'dashboard'): ?>
+                                    <?php if ($module['module_name'] === 'View Installments' || $module['module_name'] === 'View Rent'): ?>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="paid_amount_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][paid_amount]"
+                                                       <?= ($current_perm && isset($current_perm['can_paid_amount']) && $current_perm['can_paid_amount']) ? 'checked' : '' ?>>
+                                                <label class="form-check-label small" for="paid_amount_<?= $module['id'] ?>">
+                                                    <i class="bi bi-cash text-success me-1"></i>Paid Amount
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="save_<?= $module['id'] ?>" name="permissions[<?= $module['id'] ?>][save]"
+                                                       <?= ($current_perm && isset($current_perm['can_save']) && $current_perm['can_save']) ? 'checked' : '' ?>>
+                                                <label class="form-check-label small" for="save_<?= $module['id'] ?>">
+                                                    <i class="bi bi-check-circle text-primary me-1"></i>Save
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 mt-1">
+                                            <div class="text-muted small">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                Paid Amount: Controls textbox access | Save: Controls save button access
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php else: ?>
                                     <div class="row g-2">
                                         <div class="col-4">
                                             <div class="form-check">
@@ -270,6 +302,7 @@ include '../includes/header.php';
                                             </div>
                                         </div>
                                     </div>
+                                    <?php endif; ?>
                                     <?php else: ?>
                                     <div class="text-muted small mt-2">
                                         <i class="bi bi-info-circle me-1"></i>

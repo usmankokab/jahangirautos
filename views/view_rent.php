@@ -179,9 +179,9 @@ if($rent['rent_type']==='daily') {
           <td>
             <form method="POST" action="../actions/mark_rent_paid.php" class="d-inline">
               <input type="hidden" name="payment_id" value="<?= $row['id'] ?>">
-                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control form-control-sm mb-1 paid-amount-input" placeholder="Amount (<?= number_format($due,2) ?>)" value="<?= $paid ?>" oninput="if(this.value <= 0) this.value=''">
+                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control form-control-sm mb-1 paid-amount-input" placeholder="Amount (<?= number_format($due,2) ?>)" value="<?= $paid ?>" oninput="if(this.value <= 0) this.value=''" <?= check_permission('view_rent', 'paid_amount') ? '' : 'disabled readonly' ?> title="<?= check_permission('view_rent', 'paid_amount') ? '' : 'You do not have permission to edit paid amounts' ?>">
                 <input type="text" name="comment" class="form-control form-control-sm mb-1" placeholder="Comment" value="<?= htmlspecialchars($row['comment']) ?>">
-              <button type="submit" class="btn btn-sm btn-success">Save</button>
+              <button type="submit" class="btn btn-sm btn-success" <?= check_permission('view_rent', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_rent', 'save') ? '' : 'You do not have permission to save payments' ?>">Save</button>
             </form>
           </td>
           <td><?= htmlspecialchars($row['comment']) ?></td>
@@ -214,12 +214,12 @@ if($rent['rent_type']==='daily') {
           <td>
             <form method="POST" action="../actions/mark_rent_paid.php" class="d-inline">
               <input type="hidden" name="payment_id" value="<?= $row['id'] ?>">
-                <input type="number" step="0.01" name="paid_amount" class="form-control form-control-sm mb-1" placeholder="Amount (<?= number_format($due,2) ?>)" value="<?= ($paid > 0 ? $paid : '') ?>">
+                <input type="number" step="0.01" name="paid_amount" class="form-control form-control-sm mb-1" placeholder="Amount (<?= number_format($due,2) ?>)" value="<?= ($paid > 0 ? $paid : '') ?>" <?= check_permission('view_rent', 'paid_amount') ? '' : 'disabled readonly' ?> title="<?= check_permission('view_rent', 'paid_amount') ? '' : 'You do not have permission to edit paid amounts' ?>">
               <input type="text" name="comment" class="form-control form-control-sm mb-1" placeholder="Comment" value="<?= htmlspecialchars($row['comment']) ?>">
-              <button type="submit" class="btn btn-sm btn-success">Save</button>
-            </form>
-          </td>
-          <td><?= htmlspecialchars($row['comment']) ?></td>
+              <button type="submit" class="btn btn-sm btn-success" <?= check_permission('view_rent', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_rent', 'save') ? '' : 'You do not have permission to save payments' ?>">Save</button>
+             </form>
+           </td>
+           <td><?= htmlspecialchars($row['comment']) ?></td>
         </tr>
         <tr class="table-info">
           <td><b>Totals</b></td>

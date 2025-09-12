@@ -161,10 +161,10 @@ $sumQ->close();
               <input type="hidden" name="installment_id" value="<?= $row['id'] ?>">
               <div class="input-group input-group-sm mb-2">
                 <span class="input-group-text">₨</span>
-                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control paid-amount-input" placeholder="<?= number_format($due,2) ?>" value="<?= ($paid > 0 ? $paid : '') ?>" oninput="if(this.value <= 0) this.value=''">
+                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control paid-amount-input" placeholder="<?= number_format($due,2) ?>" value="<?= ($paid > 0 ? $paid : '') ?>" oninput="if(this.value <= 0) this.value=''" <?= check_permission('view_installments', 'paid_amount') ? '' : 'disabled readonly' ?> title="<?= check_permission('view_installments', 'paid_amount') ? '' : 'You do not have permission to edit paid amounts' ?>">
               </div>
               <input type="text" name="comment" class="form-control form-control-sm mb-2" placeholder="Add comment" value="<?= htmlspecialchars($row['comment']) ?>">
-              <button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-check-circle"></i> Save Payment</button>
+              <button type="submit" class="btn btn-sm btn-success w-100" <?= check_permission('view_installments', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_installments', 'save') ? '' : 'You do not have permission to save payments' ?>"><i class="bi bi-check-circle"></i> Save Payment</button>
             </form>
           </td>
         </tr>

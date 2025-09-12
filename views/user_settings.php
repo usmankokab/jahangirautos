@@ -22,8 +22,8 @@ $user_settings = [
     'timezone' => 'Asia/Karachi'
 ];
 
-// Get all available modules, excluding duplicates
-$modules_query = "SELECT * FROM modules WHERE id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13) ORDER BY parent_id, module_name";
+// Get all available modules, excluding duplicates but including view_installments and view_rent
+$modules_query = "SELECT * FROM modules WHERE id NOT IN (14, 19, 12, 22, 15, 17, 21, 18, 16, 20, 13) OR module_name IN ('view_installments', 'view_rent') ORDER BY parent_id, module_name";
 $modules_result = $conn->query($modules_query);
 $modules = [];
 while ($module = $modules_result->fetch_assoc()) {
