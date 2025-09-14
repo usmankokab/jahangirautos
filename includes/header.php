@@ -5,6 +5,14 @@ include 'permissions.php';
 
 // Check if permissions need to be refreshed (for real-time updates)
 check_and_refresh_permissions_if_needed();
+
+// Restrict customers to only allowed pages
+$allowed_customer_pages = ['customer_dashboard.php', 'view_rent.php', 'view_installments.php', 'profile.php', 'change_password.php', 'help.php', 'about.php', 'user_settings.php'];
+if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']), $allowed_customer_pages)) {
+    $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    header("Location: " . $scheme . "://" . $_SERVER['HTTP_HOST'] . "/installment_app/views/customer_dashboard.php");
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,6 +70,12 @@ check_and_refresh_permissions_if_needed();
       }
     }
   </style>
+
+  <style>
+    .main-wrapper.full-width {
+      margin-left: 0 !important;
+    }
+  </style>
 </head>
 <body>
 <?php
@@ -79,6 +93,7 @@ if (isset($_GET['error'])) {
 }
 ?>
 <div class="full-layout">
+  <?php if (!$auth->isCustomer()): ?>
   <!-- Enhanced Sidebar -->
   <nav id="sidebarMenu" class="collapse d-lg-block sidebar">
     <!-- Sidebar Header -->
@@ -298,9 +313,10 @@ if (isset($_GET['error'])) {
     </ul>
  
   </nav>
+  <?php endif; ?>
 
   <!-- Main Content Wrapper -->
-  <div class="main-wrapper">
+  <div class="main-wrapper<?= $auth->isCustomer() ? ' full-width' : '' ?>">
     <!-- Enhanced Top Navbar -->
     <nav class="navbar navbar-expand-lg">
       <div class="container-fluid">

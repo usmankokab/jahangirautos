@@ -7,6 +7,32 @@ $auth->requireLogin();
 include '../includes/header.php';
 
 $rent_id = (int)$_GET['rent_id'];
+
+// Get current user info to check if they're a customer
+$user_query = "SELECT u.*, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+$stmt = $conn->prepare($user_query);
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$current_user = $stmt->get_result()->fetch_assoc();
+
+// If user is a customer, ensure they can only view their own rents
+if ($current_user['role_name'] === 'customer') {
+    $customer_id = $_SESSION['customer_id'];
+
+    // Verify that this rent belongs to the customer
+    $rent_check_query = "SELECT r.id FROM rents r WHERE r.id = ? AND r.customer_id = ?";
+    $check_stmt = $conn->prepare($rent_check_query);
+    $check_stmt->bind_param("ii", $rent_id, $customer_id);
+    $check_stmt->execute();
+    $rent_check = $check_stmt->get_result()->fetch_assoc();
+
+    if (!$rent_check) {
+        echo "<div class='alert alert-danger'>Access denied. You can only view your own rent records.</div>";
+        include '../includes/footer.php';
+        exit;
+    }
+}
+
 $rentQ = $conn->prepare("SELECT r.*, c.name AS customer FROM rents r JOIN customers c ON c.id=r.customer_id WHERE r.id=?");
 $rentQ->bind_param("i", $rent_id);
 $rentQ->execute();

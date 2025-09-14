@@ -21,6 +21,15 @@ class Auth {
             $_SESSION['username'] = $user['username'];
             $_SESSION['name'] = $user['name'];
             $_SESSION['role'] = $user['role'];
+
+            // Get role name
+            $role_stmt = $this->conn->prepare("SELECT role_name FROM user_roles WHERE id = ?");
+            $role_stmt->bind_param("i", $user['role']);
+            $role_stmt->execute();
+            $role_result = $role_stmt->get_result();
+            $role = $role_result->fetch_assoc();
+            $_SESSION['role_name'] = $role['role_name'];
+
             return true;
         }
         return false;
@@ -45,6 +54,28 @@ class Auth {
     
     public function isAdmin() {
         return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    }
+
+    public function isCustomer() {
+        if (!isset($_SESSION['role_name']) && isset($_SESSION['user_id'])) {
+            $stmt = $this->conn->prepare("SELECT r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?");
+            $stmt->bind_param("i", $_SESSION['user_id']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc();
+            if ($user) {
+                $_SESSION['role_name'] = $user['role_name'];
+            }
+        }
+        return isset($_SESSION['role_name']) && strtolower($_SESSION['role_name']) === 'customer';
+    }
+
+    public function requireNonCustomer() {
+        if (isset($_SESSION['customer_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            exit;
+        }
     }
 }
 

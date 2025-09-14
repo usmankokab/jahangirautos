@@ -4,6 +4,8 @@ include '../config/auth.php';
 
 $auth->requireLogin();
 
+$auth->requireNonCustomer();
+
 if (isset($_GET['id'])) {
     $customer_id = (int)$_GET['id'];
 

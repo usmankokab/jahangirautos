@@ -7,6 +7,32 @@ $auth->requireLogin();
 include '../includes/header.php';
 
 $sale_id = (int)$_GET['sale_id'];
+
+// Get current user info to check if they're a customer
+$user_query = "SELECT u.*, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
+$stmt = $conn->prepare($user_query);
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$current_user = $stmt->get_result()->fetch_assoc();
+
+// If user is a customer, ensure they can only view their own sales
+if ($current_user['role_name'] === 'customer') {
+    $customer_id = $_SESSION['customer_id'];
+
+    // Verify that this sale belongs to the customer
+    $sale_check_query = "SELECT s.id FROM sales s WHERE s.id = ? AND s.customer_id = ?";
+    $check_stmt = $conn->prepare($sale_check_query);
+    $check_stmt->bind_param("ii", $sale_id, $customer_id);
+    $check_stmt->execute();
+    $sale_check = $check_stmt->get_result()->fetch_assoc();
+
+    if (!$sale_check) {
+        echo "<div class='alert alert-danger'>Access denied. You can only view your own sale records.</div>";
+        include '../includes/footer.php';
+        exit;
+    }
+}
+
 $saleQ   = $conn->prepare("
   SELECT s.sale_date,c.name,p.name,s.monthly_installment
   FROM sales s
