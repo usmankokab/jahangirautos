@@ -6,6 +6,28 @@ include 'permissions.php';
 // Check if permissions need to be refreshed (for real-time updates)
 check_and_refresh_permissions_if_needed();
 
+// Get total overdue notifications count
+$overdue_count = 0;
+$overdue_installments_count = 0;
+$overdue_rents_count = 0;
+try {
+    // Count overdue installments
+    $installments_query = "SELECT COUNT(*) as count FROM installments WHERE status != 'paid' AND due_date < CURDATE()";
+    $installments_result = $conn->query($installments_query);
+    $overdue_installments_count = $installments_result->fetch_assoc()['count'];
+
+    // Count overdue rents
+    $rents_query = "SELECT COUNT(*) as count FROM rent_payments WHERE status != 'paid' AND rent_date < CURDATE()";
+    $rents_result = $conn->query($rents_query);
+    $overdue_rents_count = $rents_result->fetch_assoc()['count'];
+
+    $overdue_count = $overdue_installments_count + $overdue_rents_count;
+} catch (Exception $e) {
+    $overdue_count = 0; // Fallback to 0 if query fails
+    $overdue_installments_count = 0;
+    $overdue_rents_count = 0;
+}
+
 // Restrict customers to only allowed pages
 $allowed_customer_pages = ['customer_dashboard.php', 'view_rent.php', 'view_installments.php', 'profile.php', 'change_password.php', 'help.php', 'about.php', 'user_settings.php'];
 if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']), $allowed_customer_pages)) {
@@ -18,7 +40,7 @@ if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']),
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Installment Manager - Advanced Dashboard</title>
+  <title>Jahangir Autos & Electronics</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Advanced Installment Management System with comprehensive reporting and analytics">
   
@@ -62,12 +84,22 @@ if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']),
       }
       body {
         padding: 0 !important;
-        margin: 0 !important;
+        margin: 0.5in !important;
       }
       .container-fluid {
         width: 100% !important;
         padding: 0 !important;
       }
+      .print-header {
+        display: block !important;
+      }
+    }
+    @page {
+      margin: 0;
+      @top-center { content: none; }
+      @bottom-center { content: none; }
+      @bottom-left { content: none; }
+      @bottom-right { content: none; }
     }
   </style>
 
@@ -78,6 +110,15 @@ if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']),
   </style>
 </head>
 <body>
+<div class="print-header" style="display: none; text-align: center; margin-bottom: 20px; font-size: 14px;">
+  <div style="display: flex; align-items: center; justify-content: center;">
+    <img src="<?= BASE_URL ?>/assets/images/0929-yellow.png" alt="Jahangir Autos" height="40" style="margin-right: 10px;">
+    <div>
+      <div style="font-weight: bold;">Jahangir Autos & Electronics</div>
+      <div>Printed on <?php echo date('Y-m-d H:i:s'); ?></div>
+    </div>
+  </div>
+</div>
 <?php
 if (isset($_GET['success'])) {
     echo '<div class="alert alert-success alert-dismissible fade show m-3" role="alert">';
@@ -342,7 +383,7 @@ if (isset($_GET['error'])) {
   <!-- Main Content Wrapper -->
   <div class="main-wrapper<?= $auth->isCustomer() ? ' full-width' : '' ?>">
     <!-- Enhanced Top Navbar -->
-    <nav class="navbar navbar-expand-lg">
+    <nav class="navbar navbar-expand-lg sticky-top">
       <div class="container-fluid">
 
 
@@ -361,12 +402,14 @@ if (isset($_GET['error'])) {
 
         <!-- Brand -->
         <a class="navbar-brand d-flex align-items-center" href="<?= BASE_URL ?>/index.php">
-          <div class="rounded-circle bg-white p-2 me-2 shadow-sm">
+          
+        <img src="<?= BASE_URL ?>/assets/images/0929-yellow.png" alt="Jahangir Autos" height="60" class="me-2">
+        <!-- <div class="rounded-circle bg-white p-2 me-2 shadow-sm">
             <i class="bi bi-graph-up-arrow text-primary fs-5"></i>
-          </div>
-          <div>
+          </div> -->
+          <!-- <div>
             <span class="fw-bold">Jahangir Autos</span>
-          </div>
+          </div> -->
         </a>
         
         <!-- Right Side Items - Separated for Independent Functionality -->
@@ -377,17 +420,17 @@ if (isset($_GET['error'])) {
                     id="navbarNotificationBtn"
                     type="button">
               <i class="bi bi-bell fs-5"></i>
+              <?php if ($overdue_count > 0): ?>
               <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                3
+                <?= $overdue_count ?>
               </span>
+              <?php endif; ?>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 navbar-notification-menu"
-                id="navbarNotificationMenu">
+                 id="navbarNotificationMenu">
               <li><h6 class="dropdown-header">Notifications</h6></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-exclamation-triangle text-warning me-2"></i>3 Overdue payments</a></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-info-circle text-info me-2"></i>New customer registered</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-center" href="#">View all notifications</a></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/overdue_installments_notifications.php"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Overdue Installments <span class="badge bg-danger ms-2"><?= $overdue_installments_count ?></span></a></li>
+              <li><a class="dropdown-item" href="<?= BASE_URL ?>/views/overdue_rents_notifications.php"><i class="bi bi-house-x text-warning me-2"></i>Overdue Rents <span class="badge bg-warning ms-2"><?= $overdue_rents_count ?></span></a></li>
             </ul>
           </span>
 
@@ -429,7 +472,7 @@ if (isset($_GET['error'])) {
     </nav>
 
     <!-- Page Content Area -->
-    <div class="content-area fade-in-up">
+    <div class="content-area fade-in-up" style="padding-top: 70px;">
 
     <!-- Responsive Sidebar JavaScript -->
     <script>

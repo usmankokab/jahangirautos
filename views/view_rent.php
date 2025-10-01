@@ -6,7 +6,13 @@ $auth->requireLogin();
 
 include '../includes/header.php';
 
-$rent_id = (int)$_GET['rent_id'];
+$rent_id = isset($_GET['rent_id']) && is_numeric($_GET['rent_id']) ? (int)$_GET['rent_id'] : 0;
+
+if ($rent_id == 0) {
+    echo "<div class='alert alert-danger'>Invalid access. Rent ID is required.</div>";
+    include '../includes/footer.php';
+    exit;
+}
 
 // Get current user info to check if they're a customer
 $user_query = "SELECT u.*, r.role_name FROM users u LEFT JOIN user_roles r ON u.role_id = r.id WHERE u.id = ?";
@@ -33,7 +39,10 @@ if ($current_user['role_name'] === 'customer') {
     }
 }
 
-$rentQ = $conn->prepare("SELECT r.*, c.name AS customer FROM rents r JOIN customers c ON c.id=r.customer_id WHERE r.id=?");
+$rentQ = $conn->prepare("SELECT r.*, c.name AS customer,
+         c.guarantor_1, c.guarantor_1_phone, c.guarantor_1_address,
+         c.guarantor_2, c.guarantor_2_phone, c.guarantor_2_address
+         FROM rents r JOIN customers c ON c.id=r.customer_id WHERE r.id=?");
 $rentQ->bind_param("i", $rent_id);
 $rentQ->execute();
 $rent = $rentQ->get_result()->fetch_assoc();
@@ -76,6 +85,66 @@ if ($rent['rent_type'] === 'daily') {
       </div>
     </div>
   </div>
+
+  <!-- Guarantor Information -->
+  <?php if ($rent['guarantor_1'] || $rent['guarantor_2']): ?>
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>Guarantor Information</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <?php if ($rent['guarantor_1']): ?>
+        <div class="col-md-6 mb-3">
+          <div class="border rounded p-3">
+            <h6 class="text-primary mb-2"><i class="bi bi-person-check me-2"></i>Guarantor 1</h6>
+            <p class="mb-1"><strong>Name:</strong> <?= htmlspecialchars($rent['guarantor_1']) ?></p>
+            <?php if ($rent['guarantor_1_phone']): ?>
+            <p class="mb-1">
+              <strong>Phone:</strong>
+              <span id="g1-phone-display"><?= htmlspecialchars($rent['guarantor_1_phone']) ?></span>
+              <button class="btn btn-sm btn-outline-success ms-2" onclick="callGuarantor('<?= htmlspecialchars($rent['guarantor_1_phone']) ?>')" title="Call Guarantor">
+                <i class="bi bi-telephone-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary ms-1" onclick="copyToClipboard('g1-phone-display')" title="Copy Phone">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </p>
+            <?php endif; ?>
+            <?php if ($rent['guarantor_1_address']): ?>
+            <p class="mb-0"><strong>Address:</strong> <?= htmlspecialchars($rent['guarantor_1_address']) ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($rent['guarantor_2']): ?>
+        <div class="col-md-6 mb-3">
+          <div class="border rounded p-3">
+            <h6 class="text-primary mb-2"><i class="bi bi-person-check me-2"></i>Guarantor 2</h6>
+            <p class="mb-1"><strong>Name:</strong> <?= htmlspecialchars($rent['guarantor_2']) ?></p>
+            <?php if ($rent['guarantor_2_phone']): ?>
+            <p class="mb-1">
+              <strong>Phone:</strong>
+              <span id="g2-phone-display"><?= htmlspecialchars($rent['guarantor_2_phone']) ?></span>
+              <button class="btn btn-sm btn-outline-success ms-2" onclick="callGuarantor('<?= htmlspecialchars($rent['guarantor_2_phone']) ?>')" title="Call Guarantor">
+                <i class="bi bi-telephone-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary ms-1" onclick="copyToClipboard('g2-phone-display')" title="Copy Phone">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </p>
+            <?php endif; ?>
+            <?php if ($rent['guarantor_2_address']): ?>
+            <p class="mb-0"><strong>Address:</strong> <?= htmlspecialchars($rent['guarantor_2_address']) ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
   <!-- Filter Form -->
   <div class="card mb-4 no-print">
     <div class="card-header">
@@ -136,11 +205,17 @@ if($rent['rent_type']==='daily') {
   $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
   $limit = 20;
   $offset = ($page - 1) * $limit;
-  
+
   // Build filter query with pagination
   $filter_sql = "SELECT *, COUNT(*) OVER() as total_records FROM rent_payments WHERE rent_id=?";
   $params = [$rent_id];
   $types = "i";
+
+  // Auto-apply overdue filter if coming from notifications
+  if (isset($_GET['filter_overdue']) && $_GET['filter_overdue'] == '1') {
+    $filter_sql .= " AND status IN ('unpaid', 'partial') AND rent_date < CURDATE()";
+  }
+
   if (!empty($_GET['status'])) {
     $filter_sql .= " AND status=?";
     $params[] = $_GET['status'];
@@ -209,6 +284,9 @@ if($rent['rent_type']==='daily') {
                 <input type="text" name="comment" class="form-control form-control-sm mb-1" placeholder="Comment" value="<?= htmlspecialchars($row['comment']) ?>">
               <button type="submit" class="btn btn-sm btn-success" <?= check_permission('view_rent', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_rent', 'save') ? '' : 'You do not have permission to save payments' ?>">Save</button>
             </form>
+            <?php if (in_array($row['status'], ['paid', 'partial'])): ?>
+            <button class="btn btn-sm btn-info mt-1" onclick="printReceiptDirectRent('<?= $row['id'] ?>', '<?= $row['rent_date'] ?>', '<?= $due ?>', '<?= $paid ?>', '<?= $row['status'] ?>', '<?= $row['paid_at'] ?>', '<?= htmlspecialchars(addslashes($row['comment'])) ?>')"><i class="bi bi-receipt"></i> Receipt</button>
+            <?php endif; ?>
           </td>
           <td><?= htmlspecialchars($row['comment']) ?></td>
         </tr>
@@ -220,8 +298,19 @@ if($rent['rent_type']==='daily') {
         </tr>
 <?php 
 } else {
-  $payQ = $conn->prepare("SELECT * FROM rent_payments WHERE rent_id=? LIMIT 1");
-  $payQ->bind_param("i", $rent_id);
+  // For monthly rents, apply overdue filter if coming from notifications
+  $monthly_sql = "SELECT * FROM rent_payments WHERE rent_id=?";
+  $monthly_params = [$rent_id];
+  $monthly_types = "i";
+
+  if (isset($_GET['filter_overdue']) && $_GET['filter_overdue'] == '1') {
+    $monthly_sql .= " AND status IN ('unpaid', 'partial') AND rent_date < CURDATE()";
+  }
+
+  $monthly_sql .= " LIMIT 1";
+
+  $payQ = $conn->prepare($monthly_sql);
+  $payQ->bind_param($monthly_types, ...$monthly_params);
   $payQ->execute();
   $row = $payQ->get_result()->fetch_assoc();
   $due = $rent['total_rent'];
@@ -244,6 +333,9 @@ if($rent['rent_type']==='daily') {
               <input type="text" name="comment" class="form-control form-control-sm mb-1" placeholder="Comment" value="<?= htmlspecialchars($row['comment']) ?>">
               <button type="submit" class="btn btn-sm btn-success" <?= check_permission('view_rent', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_rent', 'save') ? '' : 'You do not have permission to save payments' ?>">Save</button>
              </form>
+            <?php if (in_array($row['status'], ['paid', 'partial'])): ?>
+            <button class="btn btn-sm btn-info mt-1" onclick="printReceiptDirectRent('<?= $row['id'] ?>', '<?= $rent['start_date'] ?>', '<?= $due ?>', '<?= $paid ?>', '<?= $row['status'] ?>', '<?= $row['paid_at'] ?>', '<?= htmlspecialchars(addslashes($row['comment'])) ?>')"><i class="bi bi-receipt"></i> Receipt</button>
+            <?php endif; ?>
            </td>
            <td><?= htmlspecialchars($row['comment']) ?></td>
         </tr>
@@ -254,6 +346,8 @@ if($rent['rent_type']==='daily') {
         </tr>
 <?php $payQ->close(); } ?>
 <script>
+const BASE_URL = '<?= BASE_URL ?>';
+
 // Prevent paid amount > due amount
 document.querySelectorAll('.paid-amount-input').forEach(function(input) {
   input.addEventListener('change', function() {
@@ -266,6 +360,112 @@ document.querySelectorAll('.paid-amount-input').forEach(function(input) {
     }
   });
 });
+
+// Call guarantor function
+function callGuarantor(phone) {
+    if (phone) {
+        window.location.href = 'tel:' + phone;
+    }
+}
+
+// Receipt Print Handler for Rent
+function printReceiptDirectRent(id, rentDate, amount, paid, status, paidAt, comment) {
+  const content = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; justify-content: center;">
+        <img src="${BASE_URL}/assets/images/0929-yellow.png" alt="Jahangir Autos" height="40" style="margin-right: 10px;">
+        <div>
+          <div style="font-weight: bold; font-size: 18px;">Jahangir Autos & Electronics</div>
+          <div style="font-size: 14px;">Printed on ${new Date().toLocaleString()}</div>
+        </div>
+      </div>
+    </div>
+    <h4 style="text-align: center; margin-bottom: 20px;">Rent Payment Receipt</h4>
+    <table style="width: 100%; margin-bottom: 20px;">
+      <tr>
+        <td style="width: 20%;"><strong>Customer:</strong></td>
+        <td style="width: 30%;"><?= htmlspecialchars($rent['customer']) ?></td>
+        <td style="width: 20%;"><strong>Payment ID:</strong></td>
+        <td style="width: 30%;">${id}</td>
+      </tr>
+      <tr>
+        <td><strong>Product:</strong></td>
+        <td><?= htmlspecialchars($rent['product_name']) ?></td>
+        <td><strong>Rent Date:</strong></td>
+        <td>${rentDate}</td>
+      </tr>
+      <tr>
+        <td><strong>Rent Type:</strong></td>
+        <td><?= ucfirst($rent['rent_type']) ?></td>
+        <td><strong>Status:</strong></td>
+        <td>${status.charAt(0).toUpperCase() + status.slice(1)}</td>
+      </tr>
+      <tr>
+        <td><strong>Start Date:</strong></td>
+        <td><?= $rent['start_date'] ?></td>
+        <td><strong>End Date:</strong></td>
+        <td><?= $rent['end_date'] ?></td>
+      </tr>
+    </table>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px; text-align: left;">Due Amount</th>
+        <td style="border: 1px solid #000; padding: 8px;">₨${parseFloat(amount).toLocaleString()}</td>
+      </tr>
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px; text-align: left;">Paid Amount</th>
+        <td style="border: 1px solid #000; padding: 8px;">₨${parseFloat(paid).toLocaleString()}</td>
+      </tr>
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px; text-align: left;">Remaining</th>
+        <td style="border: 1px solid #000; padding: 8px;">₨${(parseFloat(amount) - parseFloat(paid)).toLocaleString()}</td>
+      </tr>
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px; text-align: left;">Paid At</th>
+        <td style="border: 1px solid #000; padding: 8px;">${paidAt || 'N/A'}</td>
+      </tr>
+      <tr>
+        <th style="border: 1px solid #000; padding: 8px; text-align: left;">Comment</th>
+        <td style="border: 1px solid #000; padding: 8px;">${comment || 'N/A'}</td>
+      </tr>
+    </table>
+    <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+      <div>
+        <p>Received by: _______________________________</p>
+      </div>
+      <div>
+        <p>Signature: _______________________________</p>
+      </div>
+    </div>
+  `;
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write('<html><head><title>Rent Payment Receipt</title>');
+  printWindow.document.write('<style>body { font-family: Arial, sans-serif; margin: 0.5in; } @page { margin: 0; @bottom-center { content: none; } @bottom-left { content: none; } @bottom-right { content: none; } }</style>');
+  printWindow.document.write('</head><body>');
+  printWindow.document.write(content);
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 100);
+}
+
+// Copy to clipboard function
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        const text = element.textContent || element.innerText;
+        navigator.clipboard.writeText(text).then(function() {
+            // Show success feedback
+            const originalText = element.innerHTML;
+            element.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>' + text;
+            setTimeout(() => {
+                element.innerHTML = originalText;
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Failed to copy: ', err);
+            alert('Failed to copy to clipboard');
+        });
+    }
+}
 </script>
       </tbody>
     </table>
