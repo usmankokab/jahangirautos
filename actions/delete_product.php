@@ -21,11 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $row = $result->fetch_assoc();
     $sales_count = $row['count'];
     $stmt->close();
-    
+
     if ($sales_count > 0) {
-      throw new Exception("Cannot delete product. It is used in $sales_count sale(s).");
+      throw new Exception("This product cannot be deleted because it is associated with $sales_count sale(s). Please remove or modify the related sales first.");
     }
-    
+
     // Delete the product
     $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
     $stmt->bind_param("i", $product_id);

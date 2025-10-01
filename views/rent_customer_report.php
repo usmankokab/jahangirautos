@@ -522,6 +522,30 @@ new Chart(categoryCtx, {
     }
 });
 
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show a brief success message
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            <i class="bi bi-check-circle me-2"></i>Phone number copied to clipboard!
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }).catch(function(err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy phone number');
+    });
+}
+
 function exportToExcel() {
     let csv = 'Rent Customer Analysis Report\n\n';
     csv += 'Period: <?= $from_date ?> to <?= $to_date ?>\n\n';
@@ -583,6 +607,11 @@ function exportToExcel() {
 .bg-warning { background: linear-gradient(45deg, #ffc107, #d39e00) !important; }
 .bg-danger { background: linear-gradient(45deg, #dc3545, #bd2130) !important; }
 .bg-secondary { background: linear-gradient(45deg, #6c757d, #545b62) !important; }
+
+.table-dark th {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
 </style>
 
 <?php include '../includes/footer.php'; ?>

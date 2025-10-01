@@ -360,6 +360,29 @@ $upcoming_rent_payments_filtered = array_filter($all_rent_payments, function($rp
                             <p class="mb-1"><i class="fas fa-map-marker-alt me-2 text-info"></i><?= htmlspecialchars($customer['address']) ?></p>
                         </div>
                     </div>
+                    <div class="mt-3">
+                        <h5 class="text-primary">Guarantors</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Guarantor 1:</strong> <?= htmlspecialchars($customer['guarantor_1']) ?></p>
+                                <?php if ($customer['guarantor_1_phone']): ?>
+                                    <p class="mb-1"><i class="fas fa-phone me-2 text-success"></i><?= htmlspecialchars($customer['guarantor_1_phone']) ?></p>
+                                <?php endif; ?>
+                                <?php if ($customer['guarantor_1_address']): ?>
+                                    <p class="mb-1"><i class="fas fa-map-marker-alt me-2 text-info"></i><?= htmlspecialchars($customer['guarantor_1_address']) ?></p>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Guarantor 2:</strong> <?= htmlspecialchars($customer['guarantor_2']) ?></p>
+                                <?php if ($customer['guarantor_2_phone']): ?>
+                                    <p class="mb-1"><i class="fas fa-phone me-2 text-success"></i><?= htmlspecialchars($customer['guarantor_2_phone']) ?></p>
+                                <?php endif; ?>
+                                <?php if ($customer['guarantor_2_address']): ?>
+                                    <p class="mb-1"><i class="fas fa-map-marker-alt me-2 text-info"></i><?= htmlspecialchars($customer['guarantor_2_address']) ?></p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-3 text-center">
                     <div class="summary-card">

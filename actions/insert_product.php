@@ -21,27 +21,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $stmt->bind_param("ssdsidd", $name, $model, $price, $stock_status, $months, $rate, $description);
   $success = $stmt->execute();
   $stmt->close();
-  $conn->close();
+  // Don't close $conn here as it's needed for permissions in header.php
 } else {
   $success = false;
 }
 
-$message = $success
-  ? ['type'=>'success','text'=>'Product added successfully.']
-  : ['type'=>'danger','text'=>'Failed to add product.'];
-
-include '../includes/header.php';
-?>
-
-<div class="container">
-  <div class="alert alert-<?php echo $message['type']; ?> text-center">
-    <?php echo $message['text']; ?>
-  </div>
-  <div class="text-center my-3">
-    <a href="../views/add_product.php" class="btn btn-primary">
-      Back to Add Product
-    </a>
-  </div>
-</div>
-
-<?php include '../includes/footer.php'; ?>
+// Handle response based on request type
+if ($success) {
+  // Check if this is an AJAX request
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    // Return JSON response for AJAX
+    header('Content-Type: application/json');
+    echo json_encode([
+      'success' => true,
+      'message' => 'Product added successfully'
+    ]);
+  } else {
+    // Regular form submission - redirect
+    header('Location: ' . BASE_URL . '/views/list_products.php?success=' . urlencode('Product added successfully'));
+  }
+} else {
+  // Check if this is an AJAX request
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    // Return JSON response for AJAX
+    header('Content-Type: application/json');
+    echo json_encode([
+      'success' => false,
+      'message' => 'Failed to add product'
+    ]);
+  } else {
+    // Regular form submission - redirect
+    header('Location: ' . BASE_URL . '/views/list_products.php?error=' . urlencode('Failed to add product'));
+  }
+}
+exit();

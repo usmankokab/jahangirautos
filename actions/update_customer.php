@@ -11,6 +11,10 @@ $phone = $_POST['phone'];
 $address = $_POST['address'];
 $guarantor_1 = $_POST['guarantor_1'];
 $guarantor_2 = $_POST['guarantor_2'];
+$guarantor_1_phone = $_POST['guarantor_1_phone'];
+$guarantor_2_phone = $_POST['guarantor_2_phone'];
+$guarantor_1_address = $_POST['guarantor_1_address'];
+$guarantor_2_address = $_POST['guarantor_2_address'];
 
 // Get existing image path
 $query = "SELECT image_path FROM customers WHERE id = ?";
@@ -58,9 +62,9 @@ if (!empty($_POST['camera_image'])) {
 }
 
 // Update record
-$update = "UPDATE customers SET name = ?, cnic = ?, phone = ?, address = ?, guarantor_1 = ?, guarantor_2 = ?, image_path = ? WHERE id = ?";
+$update = "UPDATE customers SET name = ?, cnic = ?, phone = ?, address = ?, guarantor_1 = ?, guarantor_2 = ?, guarantor_1_phone = ?, guarantor_2_phone = ?, guarantor_1_address = ?, guarantor_2_address = ?, image_path = ? WHERE id = ?";
 $stmt = $conn->prepare($update);
-$stmt->bind_param("sssssssi", $name, $cnic, $phone, $address, $guarantor_1, $guarantor_2, $new_image_path, $id);
+$stmt->bind_param("sssssssssssi", $name, $cnic, $phone, $address, $guarantor_1, $guarantor_2, $guarantor_1_phone, $guarantor_2_phone, $guarantor_1_address, $guarantor_2_address, $new_image_path, $id);
 
 if ($stmt->execute()) {
     // Check if this is an AJAX request

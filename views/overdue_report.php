@@ -590,6 +590,12 @@ function exportToExcel() {
     background-color: #fefefe !important;
 }
 
+.table-dark th {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    background-color: #dc3545 !important;
+}
+
 .bg-primary { background: linear-gradient(45deg, #007bff, #0056b3) !important; }
 .bg-success { background: linear-gradient(45deg, #28a745, #1e7e34) !important; }
 .bg-info { background: linear-gradient(45deg, #17a2b8, #117a8b) !important; }

@@ -241,6 +241,22 @@ include '../includes/header.php';
               <label class="form-label">Guarantor 2</label>
               <input type="text" name="guarantor_2" class="form-control">
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 1 Phone</label>
+              <input type="text" name="guarantor_1_phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 2 Phone</label>
+              <input type="text" name="guarantor_2_phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 1 Address</label>
+              <input type="text" name="guarantor_1_address" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 2 Address</label>
+              <input type="text" name="guarantor_2_address" class="form-control">
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -291,6 +307,22 @@ include '../includes/header.php';
             <div class="col-md-6">
               <label class="form-label">Guarantor 2</label>
               <input type="text" name="guarantor_2" id="editCustomerGuarantor2" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 1 Phone</label>
+              <input type="text" name="guarantor_1_phone" id="editCustomerGuarantor1Phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 2 Phone</label>
+              <input type="text" name="guarantor_2_phone" id="editCustomerGuarantor2Phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 1 Address</label>
+              <input type="text" name="guarantor_1_address" id="editCustomerGuarantor1Address" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Guarantor 2 Address</label>
+              <input type="text" name="guarantor_2_address" id="editCustomerGuarantor2Address" class="form-control">
             </div>
           </div>
         </div>
@@ -385,7 +417,11 @@ function editCustomer(id) {
         document.getElementById('editCustomerAddress').value = data.customer.address || '';
         document.getElementById('editCustomerGuarantor1').value = data.customer.guarantor_1 || '';
         document.getElementById('editCustomerGuarantor2').value = data.customer.guarantor_2 || '';
-        
+        document.getElementById('editCustomerGuarantor1Phone').value = data.customer.guarantor_1_phone || '';
+        document.getElementById('editCustomerGuarantor2Phone').value = data.customer.guarantor_2_phone || '';
+        document.getElementById('editCustomerGuarantor1Address').value = data.customer.guarantor_1_address || '';
+        document.getElementById('editCustomerGuarantor2Address').value = data.customer.guarantor_2_address || '';
+
         new bootstrap.Modal(document.getElementById('editCustomerModal')).show();
       } else {
         alert('Error loading customer data');

@@ -65,6 +65,16 @@ if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']),
   <!-- Advanced Design System -->
   <link href="<?= BASE_URL ?>/assets/css/advanced-design.css" rel="stylesheet">
   <link href="<?= BASE_URL ?>/assets/css/icons.css" rel="stylesheet">
+
+  <!-- Global Zoom -->
+  <style>
+    html {
+      zoom: 0.75;
+    }
+    #sidebarMenu, .navbar {
+      zoom: 1.333;
+    }
+  </style>
   
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="<?= BASE_URL ?>/assets/images/favicon.ico">

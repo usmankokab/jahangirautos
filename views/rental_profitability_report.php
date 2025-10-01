@@ -618,6 +618,11 @@ function exportToExcel() {
 .bg-warning { background: linear-gradient(45deg, #ffc107, #d39e00) !important; }
 .bg-danger { background: linear-gradient(45deg, #dc3545, #bd2130) !important; }
 .bg-secondary { background: linear-gradient(45deg, #6c757d, #545b62) !important; }
+
+.table-dark th {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
 </style>
 
 <?php include '../includes/footer.php'; ?>

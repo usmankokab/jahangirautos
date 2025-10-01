@@ -22,16 +22,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $stmt->bind_param("ssdsiddi", $name, $model, $price, $stock_status, $months, $rate, $description, $product_id);
   $success = $stmt->execute();
   $stmt->close();
-  $conn->close();
+  // Don't close $conn here as it's needed for permissions in header.php
 } else {
   $success = false;
 }
 
-$message = $success
-  ? ['type'=>'success','text'=>'Product updated successfully.']
-  : ['type'=>'danger','text'=>'Failed to update product.'];
-
-include '../includes/header.php';
+// Handle response based on request type
+if ($success) {
+  // Check if this is an AJAX request
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    // Return JSON response for AJAX
+    header('Content-Type: application/json');
+    echo json_encode([
+      'success' => true,
+      'message' => 'Product updated successfully'
+    ]);
+  } else {
+    // Regular form submission - redirect
+    header('Location: ' . BASE_URL . '/views/list_products.php?success=' . urlencode('Product updated successfully'));
+  }
+} else {
+  // Check if this is an AJAX request
+  if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+    // Return JSON response for AJAX
+    header('Content-Type: application/json');
+    echo json_encode([
+      'success' => false,
+      'message' => 'Failed to update product'
+    ]);
+  } else {
+    // Regular form submission - redirect
+    header('Location: ' . BASE_URL . '/views/list_products.php?error=' . urlencode('Failed to update product'));
+  }
+}
+exit();
 ?>
 
 <div class="container">

@@ -153,9 +153,9 @@ include '../includes/header.php';
               <td><?= $row['interest_rate'] ?></td>
               <td>
                 <?php if (check_permission('products', 'edit')): ?>
-                <a href="<?= BASE_URL ?>/views/edit_product.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Product">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="editProduct(<?= $row['id'] ?>)" title="Edit Product">
                     <i class="bi bi-pencil-square"></i>
-                </a>
+                </button>
                 <?php endif; ?>
                 <?php if (check_permission('products', 'delete')): ?>
                 <a href="<?= BASE_URL ?>/actions/delete_product.php?id=<?= $row['id'] ?>"
@@ -236,7 +236,7 @@ include '../includes/header.php';
         <h5 class="modal-title" id="addProductModalLabel">Add New Product</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form action="<?= BASE_URL ?>/actions/insert_product.php" method="POST">
+      <form id="addProductForm">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
@@ -245,7 +245,7 @@ include '../includes/header.php';
             </div>
             <div class="col-md-6">
               <label class="form-label">Model</label>
-              <input type="text" name="model" class="form-control" required>
+              <input type="text" name="model" class="form-control">
             </div>
             <div class="col-md-6">
               <label class="form-label">Price (PKR)</label>
@@ -281,6 +281,60 @@ include '../includes/header.php';
   </div>
 </div>
 
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editProductForm">
+        <input type="hidden" name="product_id" id="editProductId">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Product Name</label>
+              <input type="text" name="name" id="editProductName" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Model</label>
+              <input type="text" name="model" id="editProductModel" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Price (PKR)</label>
+              <input type="number" name="price" id="editProductPrice" class="form-control" step="0.01" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Stock Status</label>
+              <select name="stock_status" id="editProductStockStatus" class="form-select" required>
+                <option value="in_stock">In Stock</option>
+                <option value="out_of_stock">Out of Stock</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Term (months)</label>
+              <input type="number" name="installment_months" id="editProductMonths" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Interest Rate (%)</label>
+              <input type="number" name="interest_rate" id="editProductRate" class="form-control" step="0.01" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea name="description" id="editProductDescription" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Update Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 
 
 <script>
@@ -290,6 +344,79 @@ function printAllRecords() {
   url.searchParams.delete('page');
   window.open(url.toString(), '_blank');
 }
+
+document.getElementById('addProductForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+
+  fetch('<?= BASE_URL ?>/actions/insert_product.php', {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    alert('Error adding product');
+  });
+});
+
+function editProduct(id) {
+  // Fetch product data
+  fetch('<?= BASE_URL ?>/actions/get_product.php?id=' + id)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('editProductId').value = data.product.id;
+        document.getElementById('editProductName').value = data.product.name;
+        document.getElementById('editProductModel').value = data.product.model || '';
+        document.getElementById('editProductPrice').value = data.product.price;
+        document.getElementById('editProductStockStatus').value = data.product.stock_status || 'in_stock';
+        document.getElementById('editProductMonths').value = data.product.installment_months;
+        document.getElementById('editProductRate').value = data.product.interest_rate;
+        document.getElementById('editProductDescription').value = data.product.description || '';
+
+        new bootstrap.Modal(document.getElementById('editProductModal')).show();
+      } else {
+        alert('Error loading product data');
+      }
+    })
+    .catch(error => {
+      alert('Error loading product data');
+    });
+}
+
+document.getElementById('editProductForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+
+  fetch('<?= BASE_URL ?>/actions/update_product.php', {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    alert('Error updating product');
+  });
+});
 </script>
 
 <style>

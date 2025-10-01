@@ -616,13 +616,12 @@ function selectViewOnlyPermissions(moduleId) {
         if (saveCheckbox) saveCheckbox.checked = false;
     } else {
         // Handle regular modules with add/edit/delete permissions
+        // Check view, uncheck add/edit/delete, and enable them
         const modulePermissions = document.querySelectorAll(`.module-perm-${moduleId}`);
         modulePermissions.forEach(cb => {
             cb.checked = false;
             cb.disabled = false;
         });
-        // Trigger the toggle function to ensure proper state
-        toggleModulePermissions(moduleId, true);
     }
     updatePermissionSummary();
 }

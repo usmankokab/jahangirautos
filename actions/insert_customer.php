@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $addr = $_POST['address'];
     $ref = $_POST['guarantor_1'];
     $ref2 = $_POST['guarantor_2'];
+    $guarantor_1_phone = $_POST['guarantor_1_phone'];
+    $guarantor_2_phone = $_POST['guarantor_2_phone'];
+    $guarantor_1_address = $_POST['guarantor_1_address'];
+    $guarantor_2_address = $_POST['guarantor_2_address'];
 
     // Handle image upload
     if (!empty($_FILES["customer_image"]["name"])) {
@@ -43,10 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Insert into database
-    $stmt = $conn->prepare("INSERT INTO customers (name, cnic, phone, address, guarantor_1, guarantor_2, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO customers (name, cnic, phone, address, guarantor_1, guarantor_2, guarantor_1_phone, guarantor_2_phone, guarantor_1_address, guarantor_2_address, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     if ($stmt) {
-        $stmt->bind_param("sssssss", $name, $cnic, $phone, $addr, $ref, $ref2, $image_path);
+        $stmt->bind_param("sssssssssss", $name, $cnic, $phone, $addr, $ref, $ref2, $guarantor_1_phone, $guarantor_2_phone, $guarantor_1_address, $guarantor_2_address, $image_path);
         $success = $stmt->execute();
         $stmt->close();
     }

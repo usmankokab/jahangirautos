@@ -540,6 +540,11 @@ function exportToExcel() {
 .bg-info { background: linear-gradient(45deg, #17a2b8, #117a8b) !important; }
 .bg-warning { background: linear-gradient(45deg, #ffc107, #d39e00) !important; }
 .bg-secondary { background: linear-gradient(45deg, #6c757d, #545b62) !important; }
+
+.table-dark th {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
 </style>
 
 <?php include '../includes/footer.php'; ?>

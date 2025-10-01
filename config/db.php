@@ -13,9 +13,9 @@ if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === 'localhost') {
 } else {
     // Default to localhost for command line or other environments
     $host     = 'localhost';
-    $dbname   = 'installment_db';
-    $username = 'root';
-    $password = '';
+    $dbname   = 'u473559570_installment_db';
+    $username = 'u473559570_admin';
+    $password = 'TalhaJahangir@980';
 }
 
 // Create connection

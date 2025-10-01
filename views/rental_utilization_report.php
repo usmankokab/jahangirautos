@@ -111,7 +111,7 @@ if (!$rents_table_exists) {
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Rental Utilization Report</h2>
+        <h2 class="mb-0" style="color: black;"><i class="bi bi-bar-chart-line me-2"></i>Rental Utilization Report</h2>
         <div class="d-flex gap-2 no-print">
             <button class="btn btn-outline-secondary" onclick="window.print()">
                 <i class="bi bi-printer"></i> Print
@@ -468,6 +468,11 @@ function exportToExcel() {
 .bg-warning { background: linear-gradient(45deg, #ffc107, #d39e00) !important; }
 .bg-danger { background: linear-gradient(45deg, #dc3545, #bd2130) !important; }
 .bg-secondary { background: linear-gradient(45deg, #6c757d, #545b62) !important; }
+
+.table-dark th {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
 </style>
 
 <?php include '../includes/footer.php'; ?>

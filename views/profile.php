@@ -11,50 +11,9 @@ $stmt->bind_param("i", $_SESSION['user_id']);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
-// Handle profile update
+// Profile is read-only, no updates allowed
 $message = '';
 $message_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    $username = trim($_POST['username'] ?? '');
-
-    if (empty($username)) {
-        $message = 'Username is required.';
-        $message_type = 'danger';
-    } elseif ($username !== $user['username']) {
-        // Check if username is already taken
-        $check_stmt = $conn->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
-        $check_stmt->bind_param("si", $username, $_SESSION['user_id']);
-        $check_stmt->execute();
-        if ($check_stmt->get_result()->num_rows > 0) {
-            $message = 'Username is already taken.';
-            $message_type = 'danger';
-        } else {
-            $update_stmt = $conn->prepare("UPDATE users SET username = ? WHERE id = ?");
-            $update_stmt->bind_param("si", $username, $_SESSION['user_id']);
-
-            if ($update_stmt->execute()) {
-                $message = 'Profile updated successfully!';
-                $message_type = 'success';
-                $_SESSION['username'] = $username;
-
-                // Refresh user data
-                $stmt = $conn->prepare($user_query);
-                $stmt->bind_param("i", $_SESSION['user_id']);
-                $stmt->execute();
-                $user = $stmt->get_result()->fetch_assoc();
-            } else {
-                $message = 'Failed to update profile. Please try again.';
-                $message_type = 'danger';
-            }
-            $update_stmt->close();
-        }
-        $check_stmt->close();
-    } else {
-        $message = 'No changes were made.';
-        $message_type = 'info';
-    }
-}
 
 // Get user statistics based on role
 $stats = [];
@@ -130,51 +89,44 @@ include '../includes/header.php';
                             <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Profile Information</h5>
                         </div>
                         <div class="card-body">
-                            <form method="POST" action="">
-                                <input type="hidden" name="update_profile" value="1">
-
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="username" class="form-label">Username *</label>
-                                        <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($user['username']) ?>" required>
-                                        <div class="form-text">Choose a unique username</div>
-                                    </div>
-
-                                    <div class="col-md-6 mb-3">
-                                        <label for="role" class="form-label">Role</label>
-                                        <input type="text" class="form-control" id="role" value="<?= htmlspecialchars($user['role_name']) ?>" readonly>
-                                        <div class="form-text">Role is assigned by administrator</div>
-                                    </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" value="<?= htmlspecialchars($user['username']) ?>" readonly>
+                                    <div class="form-text">Username cannot be changed</div>
                                 </div>
 
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="user_id" class="form-label">User ID</label>
-                                        <input type="text" class="form-control" id="user_id" value="<?= htmlspecialchars($user['id']) ?>" readonly>
-                                        <div class="form-text">Unique identifier</div>
-                                    </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="role" class="form-label">Role</label>
+                                    <input type="text" class="form-control" id="role" value="<?= htmlspecialchars($user['role_name']) ?>" readonly>
+                                    <div class="form-text">Role is assigned by administrator</div>
+                                </div>
+                            </div>
 
-                                    <div class="col-md-6 mb-3">
-                                        <label for="status" class="form-label">Account Status</label>
-                                        <input type="text" class="form-control" id="status" value="<?= $user['is_active'] ? 'Active' : 'Inactive' ?>" readonly>
-                                        <div class="form-text">Current account status</div>
-                                    </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="user_id" class="form-label">User ID</label>
+                                    <input type="text" class="form-control" id="user_id" value="<?= htmlspecialchars($user['id']) ?>" readonly>
+                                    <div class="form-text">Unique identifier</div>
                                 </div>
 
-                                <div class="mb-3">
-                                    <label for="created_at" class="form-label">Account Created</label>
-                                    <input type="text" class="form-control" id="created_at" value="<?= date('F j, Y \a\t g:i A', strtotime($user['created_at'])) ?>" readonly>
+                                <div class="col-md-6 mb-3">
+                                    <label for="status" class="form-label">Account Status</label>
+                                    <input type="text" class="form-control" id="status" value="<?= $user['is_active'] ? 'Active' : 'Inactive' ?>" readonly>
+                                    <div class="form-text">Current account status</div>
                                 </div>
+                            </div>
 
-                                <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-check-circle me-2"></i>Update Profile
-                                    </button>
-                                    <a href="<?= BASE_URL ?>/views/change_password.php" class="btn btn-outline-primary">
-                                        <i class="bi bi-key me-2"></i>Change Password
-                                    </a>
-                                </div>
-                            </form>
+                            <div class="mb-3">
+                                <label for="created_at" class="form-label">Account Created</label>
+                                <input type="text" class="form-control" id="created_at" value="<?= date('F j, Y \a\t g:i A', strtotime($user['created_at'])) ?>" readonly>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <a href="<?= BASE_URL ?>/views/change_password.php" class="btn btn-primary">
+                                    <i class="bi bi-key me-2"></i>Change Password
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
