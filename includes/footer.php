@@ -233,20 +233,21 @@ function enhanceResponsiveTables() {
   document.querySelectorAll('.table-responsive').forEach(container => {
     const table = container.querySelector('table');
     if (table && window.innerWidth <= 768) {
+      // Horizontal scroll indicator removed as per user request
       // Add horizontal scroll indicator
-      const scrollIndicator = document.createElement('div');
-      scrollIndicator.className = 'text-muted small text-center mt-2';
-      scrollIndicator.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Scroll horizontally to view more';
-      container.appendChild(scrollIndicator);
-      
+      // const scrollIndicator = document.createElement('div');
+      // scrollIndicator.className = 'text-muted small text-center mt-2';
+      // scrollIndicator.innerHTML = '<i class="bi bi-arrow-left-right me-1"></i>Scroll horizontally to view more';
+      // container.appendChild(scrollIndicator);
+
       // Hide indicator when scrolled
-      container.addEventListener('scroll', function() {
-        if (this.scrollLeft > 0) {
-          scrollIndicator.style.opacity = '0.5';
-        } else {
-          scrollIndicator.style.opacity = '1';
-        }
-      });
+      // container.addEventListener('scroll', function() {
+      //   if (this.scrollLeft > 0) {
+      //     scrollIndicator.style.opacity = '0.5';
+      //   } else {
+      //     scrollIndicator.style.opacity = '1';
+      //   }
+      // });
     }
   });
 }
