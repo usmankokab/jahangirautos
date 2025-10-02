@@ -256,14 +256,27 @@
 
   /* Mobile brand positioning and navbar items */
   @media (max-width: 767px) {
+    .navbar .container-fluid {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+
     .navbar-brand {
       margin-left: 0 !important;
+      order: 1;
+    }
+
+    .navbar-brand img {
+      height: 40px;
     }
 
     .navbar .d-flex.align-items-center.gap-3 {
       margin-left: auto;
       position: relative;
       z-index: 1020;
+      order: 2;
     }
 
     .main-wrapper {
@@ -415,8 +428,16 @@
 
   /* Mobile responsive behavior */
   @media (max-width: 768px) {
+    html {
+      transform: none;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
     .full-layout {
       flex-direction: column;
+      width: 100vw;
     }
 
     /* Simple mobile sidebar behavior */
@@ -436,7 +457,7 @@
     }
 
     .main-wrapper {
-      width: 100vw;
+      width: 100%;
       margin-left: 0;
     }
 

@@ -74,6 +74,14 @@ if (isset($_SESSION['customer_id']) && !in_array(basename($_SERVER['PHP_SELF']),
     #sidebarMenu, .navbar {
       zoom: 1.333;
     }
+    @media (max-width: 768px) {
+      html {
+        zoom: 1;
+      }
+      #sidebarMenu, .navbar {
+        zoom: 1;
+      }
+    }
   </style>
   
   <!-- Favicon -->
