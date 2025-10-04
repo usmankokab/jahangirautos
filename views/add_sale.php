@@ -66,11 +66,15 @@ include '../includes/header.php';
         </div>
 
         <div class="row g-3 mt-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
+            <label class="form-label"><strong>Sale Date</strong></label>
+            <input type="date" name="sale_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+          </div>
+          <div class="col-md-4">
             <label class="form-label"><strong>Down Payment (PKR)</strong></label>
             <input type="number" step="0.01" name="down_payment" id="downPayment" class="form-control" value="0.00">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label"><strong>Monthly Installment (PKR)</strong></label>
             <input type="text" id="monthlyInstallment" class="form-control" readonly>
           </div>

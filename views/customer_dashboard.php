@@ -113,6 +113,18 @@ $overdue_rent_payments = array_filter($all_rent_payments, function($rp) {
 });
 $total_overdue = count($overdue_installments) + count($overdue_rent_payments);
 
+// Debug logging for dashboard calculations
+error_log("Customer Dashboard - Total Sales: " . $total_sales);
+error_log("Customer Dashboard - Total Sales Paid: " . $total_sales_paid);
+error_log("Customer Dashboard - Total Sales Remaining: " . $total_sales_remaining);
+error_log("Customer Dashboard - Total Rents: " . $total_rents);
+error_log("Customer Dashboard - Total Rents Paid: " . $total_rents_paid);
+error_log("Customer Dashboard - Total Rents Remaining: " . $total_rents_remaining);
+error_log("Customer Dashboard - Grand Total Paid: " . $grand_total_paid);
+error_log("Customer Dashboard - Grand Total Remaining: " . $grand_total_remaining);
+error_log("Customer Dashboard - Grand Total Due: " . $grand_total_due);
+error_log("Customer Dashboard - Total Overdue: " . $total_overdue);
+
 // Upcoming payments (next 30 days)
 $upcoming_payments = array_filter($all_installments, function($i) {
     return $i['status'] != 'paid' && $i['days_until_due'] >= 0 && $i['days_until_due'] <= 30;

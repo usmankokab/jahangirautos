@@ -55,6 +55,16 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $summary = $stmt->get_result()->fetch_assoc();
 
+// Debug logging for sales summary
+error_log("Sales Summary - Total Sales: " . ($summary['total_sales'] ?? 0));
+error_log("Sales Summary - Total Revenue: " . ($summary['total_revenue'] ?? 0));
+error_log("Sales Summary - Total Down Payments: " . ($summary['total_down_payments'] ?? 0));
+error_log("Sales Summary - Total Installment Value: " . ($summary['total_installment_value'] ?? 0));
+error_log("Sales Summary - Avg Sale Amount: " . ($summary['avg_sale_amount'] ?? 0));
+error_log("Sales Summary - Avg Monthly Installment: " . ($summary['avg_monthly_installment'] ?? 0));
+error_log("Sales Summary - Avg Installment Period: " . ($summary['avg_installment_period'] ?? 0));
+error_log("Sales Summary - Avg Interest Rate: " . ($summary['avg_interest_rate'] ?? 0));
+
 // Monthly trend data
 $trend_query = "
     SELECT 

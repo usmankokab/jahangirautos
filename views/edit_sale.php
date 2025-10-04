@@ -98,11 +98,15 @@ if ($sale_id > 0) {
         </div>
 
         <div class="row g-3 mt-3">
-          <div class="col-md-6">
+          <div class="col-md-4">
+            <label class="form-label"><strong>Sale Date</strong></label>
+            <input type="date" name="sale_date" class="form-control" value="<?= $sale['sale_date'] ?>" required>
+          </div>
+          <div class="col-md-4">
             <label class="form-label"><strong>Down Payment (PKR)</strong></label>
             <input type="number" step="0.01" name="down_payment" id="downPayment" class="form-control" value="<?= $sale['down_payment'] ?>">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label"><strong>Monthly Installment (PKR)</strong></label>
             <input type="text" id="monthlyInstallment" class="form-control" readonly value="<?= $sale['monthly_installment'] ?>">
           </div>

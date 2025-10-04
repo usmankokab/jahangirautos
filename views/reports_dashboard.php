@@ -20,11 +20,19 @@ $stats_query = "
         (SELECT COUNT(*) FROM rents) as total_rents,
         (SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE MONTH(sale_date) = MONTH(CURDATE()) AND YEAR(sale_date) = YEAR(CURDATE())) as monthly_sales_amount,
         (SELECT COALESCE(SUM(CASE WHEN rent_type = 'daily' THEN daily_rent * DATEDIFF(end_date, start_date) ELSE total_rent END), 0) FROM rents WHERE MONTH(start_date) = MONTH(CURDATE()) AND YEAR(start_date) = YEAR(CURDATE())) as monthly_rent_amount,
-        (SELECT COUNT(*) FROM installments WHERE status = 'unpaid' AND due_date <= CURDATE()) as overdue_installments,
+        (SELECT COUNT(*) FROM installments WHERE status != 'paid' AND due_date <= CURDATE()) as overdue_installments,
         (SELECT COALESCE(SUM(amount - paid_amount), 0) FROM installments WHERE status IN ('unpaid', 'partial')) as pending_amount
 ";
 $stats_result = $conn->query($stats_query);
 $stats = $stats_result->fetch_assoc();
+
+// Debug logging for reports dashboard stats
+error_log("Reports Dashboard - Total Sales: " . $stats['total_sales']);
+error_log("Reports Dashboard - Total Rents: " . $stats['total_rents']);
+error_log("Reports Dashboard - Monthly Sales Amount: " . $stats['monthly_sales_amount']);
+error_log("Reports Dashboard - Monthly Rent Amount: " . $stats['monthly_rent_amount']);
+error_log("Reports Dashboard - Overdue Installments: " . $stats['overdue_installments']);
+error_log("Reports Dashboard - Pending Amount: " . $stats['pending_amount']);
 ?>
 
 <div class="container-fluid">

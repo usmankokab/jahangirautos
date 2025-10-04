@@ -354,11 +354,15 @@ $total_pages_default = ceil($total_records / 20);
               <input type="number" step="0.01" id="addRate" name="rate" class="form-control">
               <input type="hidden" id="addOriginalRate" name="original_rate">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+              <label class="form-label"><strong>Sale Date</strong></label>
+              <input type="date" name="sale_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+            </div>
+            <div class="col-md-4">
               <label class="form-label"><strong>Down Payment (PKR)</strong></label>
               <input type="number" step="0.01" name="down_payment" id="addDownPayment" class="form-control" value="0.00">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label"><strong>Monthly Installment (PKR)</strong></label>
               <input type="text" id="addMonthlyInstallment" class="form-control" readonly>
             </div>
@@ -439,11 +443,15 @@ $total_pages_default = ceil($total_records / 20);
               <input type="number" step="0.01" id="editRate" name="rate" class="form-control">
               <input type="hidden" id="editOriginalRate" name="original_rate">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
+              <label class="form-label"><strong>Sale Date</strong></label>
+              <input type="date" name="sale_date" id="editSaleDate" class="form-control" readonly>
+            </div>
+            <div class="col-md-4">
               <label class="form-label"><strong>Down Payment (PKR)</strong></label>
               <input type="number" step="0.01" name="down_payment" id="editDownPayment" class="form-control">
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label"><strong>Monthly Installment (PKR)</strong></label>
               <input type="text" id="editMonthlyInstallment" class="form-control" readonly>
             </div>
@@ -555,6 +563,7 @@ function editSale(id) {
       if (data.success) {
         const sale = data.sale;
         document.getElementById('editSaleId').value = sale.id;
+        document.getElementById('editSaleDate').value = (sale.sale_date && sale.sale_date !== '0000-00-00') ? sale.sale_date : '<?= date('Y-m-d') ?>';
         document.getElementById('editCustomerId').value = sale.customer_id;
         document.getElementById('editProductSelect').value = sale.product_id;
         document.getElementById('editPrice').value = sale.total_amount;

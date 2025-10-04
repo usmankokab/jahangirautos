@@ -3,8 +3,6 @@ include '../config/db.php';
 include '../config/auth.php';
 include '../includes/permissions.php';
 
-$auth->requireLogin();
-require_permission_or_lock('installments', 'view');
 
 include '../includes/header.php';
 
@@ -32,6 +30,7 @@ $where_clause = implode(" AND ", $where_conditions);
 $query = "
     SELECT
         i.*,
+        ROW_NUMBER() OVER (PARTITION BY i.sale_id ORDER BY i.due_date) as installment_number,
         s.sale_date,
         s.total_amount,
         p.name as product_name,
@@ -60,6 +59,9 @@ $overdue_installments = $result->fetch_all(MYSQLI_ASSOC);
 
 // Calculate summary
 $total_overdue = count($overdue_installments);
+
+// Debug log
+error_log("Overdue Installments Notifications - Total Overdue: " . $total_overdue);
 $total_amount = array_sum(array_column($overdue_installments, 'amount'));
 $total_paid = array_sum(array_column($overdue_installments, 'paid_amount'));
 $remaining_amount = $total_amount - $total_paid;

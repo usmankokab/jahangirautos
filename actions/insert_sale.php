@@ -8,6 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $cust  = $_POST['customer_id'];
   $prod  = $_POST['product_id'];
   $dp    = (float)$_POST['down_payment'];
+  $sale_date = $_POST['sale_date'] ?? date('Y-m-d');
 
   // Check if values were edited, otherwise fetch from product
   $price = isset($_POST['price']) ? (float)$_POST['price'] : 0;
@@ -31,17 +32,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   // insert sale
   $stmt = $conn->prepare(
-    "INSERT INTO sales 
-     (customer_id,product_id,total_amount,down_payment,months,interest_rate,monthly_installment)
-     VALUES (?,?,?,?,?,?,?)"
+    "INSERT INTO sales
+     (customer_id,product_id,total_amount,down_payment,months,interest_rate,monthly_installment,sale_date)
+     VALUES (?,?,?,?,?,?,?,?)"
   );
-  $stmt->bind_param("iiiddid", $cust,$prod,$price,$dp,$months,$rate,$mi);
+  $stmt->bind_param("iiiddids", $cust,$prod,$price,$dp,$months,$rate,$mi,$sale_date);
   $stmt->execute();
   $sale_id = $stmt->insert_id;
   $stmt->close();
 
   // generate installment rows
-  $due = new DateTime();
+  $due = new DateTime($sale_date);
   for($i=1;$i<=$months;$i++){
     $due->modify('+1 month');
     $ip = $conn->prepare(

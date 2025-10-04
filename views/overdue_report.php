@@ -19,7 +19,9 @@ $where_conditions = ["i.due_date <= CURDATE()"];
 $params = [];
 $types = "";
 
-if ($status_filter !== 'all') {
+if ($status_filter === 'all') {
+    $where_conditions[] = "i.status IN ('unpaid', 'partial')";
+} elseif ($status_filter !== 'all') {
     $where_conditions[] = "i.status = ?";
     $params[] = $status_filter;
     $types .= "s";
@@ -66,6 +68,9 @@ $stmt->bind_param($types . "ssss", ...array_merge($params, [$sort_by, $sort_by, 
 $stmt->execute();
 $overdue_installments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
+// Debug logging for main overdue query
+error_log("Overdue Report - Main Query Count: " . count($overdue_installments));
+
 // Summary statistics
 $summary_query = "
     SELECT
@@ -81,11 +86,21 @@ $summary_query = "
     FROM installments i
     JOIN sales s ON i.sale_id = s.id
     JOIN customers c ON s.customer_id = c.id
-    WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial')
+    WHERE i.due_date <= CURDATE() AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
 ";
 
-$summary_result = $conn->query($summary_query);
-$summary = $summary_result->fetch_assoc();
+$summary_stmt = $conn->prepare($summary_query);
+$summary_stmt->bind_param("ss", $from_date, $to_date);
+$summary_stmt->execute();
+$summary = $summary_stmt->get_result()->fetch_assoc();
+$summary_stmt->close();
+
+// Debug logging for overdue report summary
+error_log("Overdue Report - Summary Total Overdue: " . $summary['total_overdue']);
+error_log("Overdue Report - Summary Total Remaining: " . $summary['total_remaining']);
+error_log("Overdue Report - Summary Affected Customers: " . $summary['affected_customers']);
+error_log("Overdue Report - Summary Fully Unpaid: " . $summary['fully_unpaid']);
+error_log("Overdue Report - Summary Partially Paid: " . $summary['partially_paid']);
 
 // Overdue by customer
 $customer_overdue_query = "
@@ -103,12 +118,19 @@ $customer_overdue_query = "
     JOIN sales s ON c.id = s.customer_id
     JOIN installments i ON s.id = i.sale_id
     JOIN products p ON s.product_id = p.id
-    WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial')
+    WHERE i.due_date <= CURDATE() AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
     GROUP BY c.id, c.name, c.phone, c.cnic
     ORDER BY total_overdue_amount DESC
 ";
 
-$customer_overdue = $conn->query($customer_overdue_query)->fetch_all(MYSQLI_ASSOC);
+$customer_stmt = $conn->prepare($customer_overdue_query);
+$customer_stmt->bind_param("ss", $from_date, $to_date);
+$customer_stmt->execute();
+$customer_overdue = $customer_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$customer_stmt->close();
+
+// Debug logging for customer overdue
+error_log("Overdue Report - Customer Overdue Count: " . count($customer_overdue));
 
 // Recovery rate analysis
 $recovery_query = "
@@ -131,7 +153,7 @@ $recovery_query = "
             i.paid_amount,
             DATEDIFF(CURDATE(), i.due_date) as days_overdue
         FROM installments i
-        WHERE i.due_date <= CURDATE()
+        WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial')
     ) overdue_data
     GROUP BY overdue_range
     ORDER BY
@@ -145,6 +167,9 @@ $recovery_query = "
 ";
 
 $recovery_data = $conn->query($recovery_query)->fetch_all(MYSQLI_ASSOC);
+
+// Debug logging for recovery data
+error_log("Overdue Report - Recovery Data Count: " . count($recovery_data));
 ?>
 
 <div class="container-fluid">
