@@ -9,7 +9,7 @@ require_permission_or_lock('overdue_report', 'view');
 include '../includes/header.php';
 
 // Get filter parameters
-$from_date = $_GET['from_date'] ?? date('Y-m-01');
+$from_date = $_GET['from_date'] ?? date('Y-m-d', strtotime('-3 months'));
 $to_date = $_GET['to_date'] ?? date('Y-m-t');
 $status_filter = $_GET['status'] ?? 'all';
 $sort_by = $_GET['sort_by'] ?? 'days_overdue';
@@ -71,13 +71,13 @@ $overdue_installments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 // Debug logging for main overdue query
 error_log("Overdue Report - Main Query Count: " . count($overdue_installments));
 
-// Summary statistics
+// Summary statistics (filtered)
 $summary_query = "
     SELECT
         COUNT(*) as total_overdue,
         SUM(i.amount) as total_amount_due,
-        SUM(i.paid_amount) as total_amount_paid,
-        SUM(i.amount - i.paid_amount) as total_remaining,
+        COALESCE(SUM(i.paid_amount), 0) as total_amount_paid,
+        SUM(i.amount - COALESCE(i.paid_amount, 0)) as total_remaining,
         AVG(DATEDIFF(CURDATE(), i.due_date)) as avg_days_overdue,
         COUNT(CASE WHEN i.status = 'unpaid' THEN 1 END) as fully_unpaid,
         COUNT(CASE WHEN i.status = 'partial' THEN 1 END) as partially_paid,
@@ -94,6 +94,9 @@ $summary_stmt->bind_param("ss", $from_date, $to_date);
 $summary_stmt->execute();
 $summary = $summary_stmt->get_result()->fetch_assoc();
 $summary_stmt->close();
+
+// Total overdue amount (filtered by sale date)
+$total_overdue_amount = $summary ? $summary['total_remaining'] : 0;
 
 // Debug logging for overdue report summary
 error_log("Overdue Report - Summary Total Overdue: " . $summary['total_overdue']);
@@ -196,7 +199,7 @@ error_log("Overdue Report - Recovery Data Count: " . count($recovery_data));
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Total Overdue</div>
-                            <div class="h4 mb-0">₨<?= number_format($summary['total_remaining'], 0) ?></div>
+                            <div class="h4 mb-0">₨<?= number_format($total_overdue_amount, 0) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-exclamation-triangle fa-2x"></i>
@@ -561,7 +564,7 @@ function exportToExcel() {
     csv += 'Period: Current\n\n';
 
     csv += 'Summary:\n';
-    csv += 'Total Overdue Amount: ₨<?= number_format($summary['total_remaining'], 0) ?>\n';
+    csv += 'Total Overdue Amount: ₨<?= number_format($total_overdue_amount, 0) ?>\n';
     csv += 'Total Overdue Installments: <?= $summary['total_overdue'] ?>\n';
     csv += 'Affected Customers: <?= $summary['affected_customers'] ?>\n\n';
 
