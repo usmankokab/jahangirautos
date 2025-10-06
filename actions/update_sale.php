@@ -27,9 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   
   // calculate installments
-  $markup = ($price * $rate)/100;
-  $balance = $price + $markup - $dp;
-  $mi = round($balance/$months,2);
+  $remaining = $price - $dp;
+  $interest = ($remaining * $rate) / 100;
+  $balance = $remaining + $interest;
+  $mi = round($balance / $months);
   
   // Begin transaction
   $conn->begin_transaction();

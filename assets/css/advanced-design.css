@@ -480,4 +480,10 @@
       padding: 0.5rem 1rem;
     }
   }
+
+  /* Modal backdrop fix for zoomed layout */
+  .modal-backdrop {
+    zoom: 1.333;
+    background-color: rgba(0,0,0,0.8) !important;
+  }
 }

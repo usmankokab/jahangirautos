@@ -14,9 +14,9 @@ $offset = ($page - 1) * ($limit > 0 ? $limit : 0);
 // Build SQL query with filters
 $sql = "SELECT s.id, s.sale_date, c.name cust, p.name prod, p.model,
          s.total_amount, s.down_payment, s.monthly_installment, s.months, s.interest_rate,
-         (s.total_amount + ((s.total_amount * s.interest_rate) / 100)) as due_amount,
+         ((s.total_amount - s.down_payment) + (((s.total_amount - s.down_payment) * s.interest_rate) / 100)) as due_amount,
          COALESCE(SUM(i.paid_amount), 0) as total_paid,
-         ((s.total_amount + ((s.total_amount * s.interest_rate) / 100)) - COALESCE(SUM(i.paid_amount), 0)) as remaining_amount,
+         (((s.total_amount - s.down_payment) + (((s.total_amount - s.down_payment) * s.interest_rate) / 100)) - COALESCE(SUM(i.paid_amount), 0)) as remaining_amount,
          COUNT(*) OVER() as total_records
   FROM sales s
   JOIN customers c ON c.id=s.customer_id
