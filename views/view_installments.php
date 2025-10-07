@@ -110,7 +110,7 @@ while($row = $res->fetch_assoc()) {
 $total_pages = $limit > 0 ? ceil($total_records / $limit) : 1;
 
 // Calculate totals for all installments (not just filtered)
-$sumQ = $conn->prepare("SELECT SUM(amount) as total_due, SUM(paid_amount) as total_paid FROM installments WHERE sale_id=?");
+$sumQ = $conn->prepare("SELECT SUM(ROUND(amount)) as total_due, SUM(paid_amount) as total_paid FROM installments WHERE sale_id=?");
 $sumQ->bind_param("i", $sale_id);
 $sumQ->execute();
 $sumQ->bind_result($total_due_all, $total_paid_all);
@@ -127,7 +127,7 @@ $sumQ->close();
   </div>
   
   <div class="alert alert-info mb-3">
-    <strong>Sale Date:</strong> <?= $sd ?> | <strong>Monthly Installment:</strong> ₨<?= number_format($mi,2) ?>
+    <strong>Sale Date:</strong> <?= $sd ?> | <strong>Monthly Installment:</strong> ₨<?= number_format($mi,0) ?>
   </div>
 
   <!-- Guarantor Information -->
@@ -250,9 +250,9 @@ $sumQ->close();
           <td><?= $i++ ?></td>
           <td><?= $row['due_date'] ?></td>
           <td>
-            <strong>Due:</strong> ₨<?= number_format($due,2) ?><br>
-            <strong>Paid:</strong> ₨<?= number_format($paid,2) ?><br>
-            <strong>Remain:</strong> ₨<?= number_format($remaining,2) ?>
+            <strong>Due:</strong> ₨<?= number_format($due,0) ?><br>
+            <strong>Paid:</strong> ₨<?= number_format($paid,0) ?><br>
+            <strong>Remain:</strong> ₨<?= number_format($remaining,0) ?>
           </td>
           <td><span class="badge <?= $row['status'] == 'paid' ? 'bg-success' : ($row['status'] == 'partial' ? 'bg-warning' : 'bg-danger') ?>"><?= ucfirst($row['status']) ?></span></td>
           <td><?= $row['paid_at'] ?: '—' ?></td>
@@ -262,7 +262,7 @@ $sumQ->close();
               <input type="hidden" name="installment_id" value="<?= $row['id'] ?>">
               <div class="input-group input-group-sm mb-2">
                 <span class="input-group-text">₨</span>
-                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control paid-amount-input" placeholder="<?= number_format($due,2) ?>" value="<?= ($paid > 0 ? $paid : '') ?>" oninput="if(this.value <= 0) this.value=''" <?= check_permission('view_installments', 'paid_amount') ? '' : 'disabled readonly' ?> title="<?= check_permission('view_installments', 'paid_amount') ? '' : 'You do not have permission to edit paid amounts' ?>">
+                <input type="number" step="0.01" min="0.01" max="<?= $due ?>" name="paid_amount" class="form-control paid-amount-input" placeholder="<?= number_format($due,0) ?>" value="<?= ($paid > 0 ? $paid : '') ?>" oninput="if(this.value <= 0) this.value=''" <?= check_permission('view_installments', 'paid_amount') ? '' : 'disabled readonly' ?> title="<?= check_permission('view_installments', 'paid_amount') ? '' : 'You do not have permission to edit paid amounts' ?>">
               </div>
               <input type="text" name="comment" class="form-control form-control-sm mb-2" placeholder="Add comment" value="<?= htmlspecialchars($row['comment']) ?>">
               <button type="submit" class="btn btn-sm btn-success w-100" <?= check_permission('view_installments', 'save') ? '' : 'disabled' ?> title="<?= check_permission('view_installments', 'save') ? '' : 'You do not have permission to save payments' ?>"><i class="bi bi-check-circle"></i> Save Payment</button>
@@ -276,9 +276,9 @@ $sumQ->close();
         <tr class="table-primary">
           <td colspan="2"><strong>Totals (All Installments)</strong></td>
           <td colspan="2">
-            <strong>Due:</strong> ₨<?= number_format($total_due_all,2) ?> | 
-            <strong>Paid:</strong> ₨<?= number_format($total_paid_all,2) ?> | 
-            <strong>Remaining:</strong> ₨<?= number_format($total_due_all-$total_paid_all,2) ?>
+            <strong>Due:</strong> ₨<?= number_format($total_due_all,0) ?> |
+            <strong>Paid:</strong> ₨<?= number_format($total_paid_all,0) ?> |
+            <strong>Remaining:</strong> ₨<?= number_format($total_due_all-$total_paid_all,0) ?>
           </td>
           <td colspan="3"></td>
         </tr>
@@ -380,15 +380,15 @@ function printReceiptDirect(id, dueDate, amount, paid, status, paidAt, comment) 
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
       <tr>
         <th style="border: 1px solid #000; padding: 8px; text-align: left;">Due Amount</th>
-        <td style="border: 1px solid #000; padding: 8px;">₨${parseFloat(amount).toLocaleString()}</td>
+        <td style="border: 1px solid #000; padding: 8px;">₨${Math.round(parseFloat(amount)).toLocaleString()}</td>
       </tr>
       <tr>
         <th style="border: 1px solid #000; padding: 8px; text-align: left;">Paid Amount</th>
-        <td style="border: 1px solid #000; padding: 8px;">₨${parseFloat(paid).toLocaleString()}</td>
+        <td style="border: 1px solid #000; padding: 8px;">₨${Math.round(parseFloat(paid)).toLocaleString()}</td>
       </tr>
       <tr>
         <th style="border: 1px solid #000; padding: 8px; text-align: left;">Remaining</th>
-        <td style="border: 1px solid #000; padding: 8px;">₨${(parseFloat(amount) - parseFloat(paid)).toLocaleString()}</td>
+        <td style="border: 1px solid #000; padding: 8px;">₨${Math.round(parseFloat(amount) - parseFloat(paid)).toLocaleString()}</td>
       </tr>
       <tr>
         <th style="border: 1px solid #000; padding: 8px; text-align: left;">Paid At</th>

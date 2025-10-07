@@ -340,7 +340,9 @@ $active_rentals = $conn->query($active_rentals_query)->fetch_all(MYSQLI_ASSOC);
                     <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Rental Trend</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="rentalTrendChart" height="100"></canvas>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="rentalTrendChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -561,6 +563,13 @@ new Chart(rentalTrendCtx, {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
         interaction: {
             mode: 'index',
             intersect: false,

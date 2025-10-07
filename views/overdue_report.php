@@ -135,44 +135,50 @@ $customer_stmt->close();
 // Debug logging for customer overdue
 error_log("Overdue Report - Customer Overdue Count: " . count($customer_overdue));
 
-// Recovery rate analysis
+// Recovery rate analysis (filtered by sale date)
 $recovery_query = "
     SELECT
         CASE
             WHEN days_overdue <= 7 THEN '1-7 days'
-            WHEN days_overdue <= 30 THEN '8-30 days'
-            WHEN days_overdue <= 90 THEN '31-90 days'
+            WHEN days_overdue <= 15 THEN '8-15 days'
+            WHEN days_overdue <= 30 THEN '16-30 days'
+            WHEN days_overdue <= 60 THEN '31-60 days'
+            WHEN days_overdue <= 90 THEN '61-90 days'
             WHEN days_overdue <= 180 THEN '91-180 days'
             ELSE '180+ days'
         END as overdue_range,
         COUNT(*) as installment_count,
         SUM(amount) as total_amount,
-        SUM(paid_amount) as total_paid,
-        SUM(amount - paid_amount) as total_remaining,
-        ROUND((SUM(paid_amount) / SUM(amount)) * 100, 2) as recovery_rate
+        COALESCE(SUM(paid_amount), 0) as total_paid,
+        SUM(amount - COALESCE(paid_amount, 0)) as total_remaining,
+        ROUND((COALESCE(SUM(paid_amount), 0) / SUM(amount)) * 100, 2) as recovery_rate
     FROM (
         SELECT
             i.amount,
             i.paid_amount,
             DATEDIFF(CURDATE(), i.due_date) as days_overdue
         FROM installments i
-        WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial')
+        JOIN sales s ON i.sale_id = s.id
+        WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial') AND s.sale_date BETWEEN ? AND ?
     ) overdue_data
     GROUP BY overdue_range
     ORDER BY
         CASE overdue_range
             WHEN '1-7 days' THEN 1
-            WHEN '8-30 days' THEN 2
-            WHEN '31-90 days' THEN 3
-            WHEN '91-180 days' THEN 4
-            ELSE 5
+            WHEN '8-15 days' THEN 2
+            WHEN '16-30 days' THEN 3
+            WHEN '31-60 days' THEN 4
+            WHEN '61-90 days' THEN 5
+            WHEN '91-180 days' THEN 6
+            ELSE 7
         END
 ";
 
-$recovery_data = $conn->query($recovery_query)->fetch_all(MYSQLI_ASSOC);
-
-// Debug logging for recovery data
-error_log("Overdue Report - Recovery Data Count: " . count($recovery_data));
+$recovery_stmt = $conn->prepare($recovery_query);
+$recovery_stmt->bind_param("ss", $from_date, $to_date);
+$recovery_stmt->execute();
+$recovery_data = $recovery_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$recovery_stmt->close();
 ?>
 
 <div class="container-fluid">
@@ -334,26 +340,102 @@ error_log("Overdue Report - Recovery Data Count: " . count($recovery_data));
         </div>
     </div>
 
-    <!-- Recovery Rate Chart -->
+    <!-- Enhanced Charts Section -->
     <div class="row mb-4">
-        <div class="col-lg-6 mb-4">
+        <!-- Overdue Amount Distribution -->
+        <div class="col-lg-4 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Recovery Rate by Overdue Period</h5>
+                    <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Overdue Amount by Period</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="recoveryChart"></canvas>
+                    <canvas id="overdueAmountChart" style="max-height: 300px;"></canvas>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-6 mb-4">
+        <!-- Recovery Rate Analysis -->
+        <div class="col-lg-4 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Overdue Distribution</h5>
+                    <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Recovery Rate by Period</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="overdueChart"></canvas>
+                    <canvas id="recoveryRateChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Status Breakdown -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Payment Status Overview</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentStatusChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Metrics Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-table me-2"></i>Detailed Overdue Metrics by Period</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Period</th>
+                                    <th>Installments</th>
+                                    <th>Total Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Remaining</th>
+                                    <th>Recovery Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $total_installments = array_sum(array_column($recovery_data, 'installment_count'));
+                                $total_amount_all = array_sum(array_column($recovery_data, 'total_amount'));
+                                $total_paid_all = array_sum(array_column($recovery_data, 'total_paid'));
+                                $total_remaining_all = array_sum(array_column($recovery_data, 'total_remaining'));
+
+                                foreach($recovery_data as $period):
+                                ?>
+                                <tr>
+                                    <td><strong><?= $period['overdue_range'] ?></strong></td>
+                                    <td class="text-center"><?= $period['installment_count'] ?></td>
+                                    <td>₨<?= number_format($period['total_amount'], 0) ?></td>
+                                    <td>₨<?= number_format($period['total_paid'], 0) ?></td>
+                                    <td><strong class="text-danger">₨<?= number_format($period['total_remaining'], 0) ?></strong></td>
+                                    <td>
+                                        <span class="badge bg-<?= $period['recovery_rate'] >= 50 ? 'success' : ($period['recovery_rate'] >= 25 ? 'warning' : 'danger') ?>">
+                                            <?= number_format($period['recovery_rate'], 1) ?>%
+                                        </span>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                <tr class="table-primary fw-bold">
+                                    <td><strong>TOTAL</strong></td>
+                                    <td class="text-center"><?= $total_installments ?></td>
+                                    <td>₨<?= number_format($total_amount_all, 0) ?></td>
+                                    <td>₨<?= number_format($total_paid_all, 0) ?></td>
+                                    <td>₨<?= number_format($total_remaining_all, 0) ?></td>
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            <?= $total_amount_all > 0 ? number_format(($total_paid_all / $total_amount_all) * 100, 1) : 0 ?>%
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -499,25 +581,59 @@ error_log("Overdue Report - Recovery Data Count: " . count($recovery_data));
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// Recovery Rate Chart
+// Recovery data for charts
 const recoveryData = <?= json_encode($recovery_data) ?>;
-const recoveryLabels = recoveryData.map(item => item.overdue_range);
-const recoveryRates = recoveryData.map(item => parseFloat(item.recovery_rate));
+const chartLabels = recoveryData.map(item => item.overdue_range);
 
-const recoveryCtx = document.getElementById('recoveryChart').getContext('2d');
-new Chart(recoveryCtx, {
+// 1. Overdue Amount by Period Chart
+const overdueAmountCtx = document.getElementById('overdueAmountChart').getContext('2d');
+new Chart(overdueAmountCtx, {
     type: 'bar',
     data: {
-        labels: recoveryLabels,
+        labels: chartLabels,
         datasets: [{
-            label: 'Recovery Rate (%)',
-            data: recoveryRates,
-            backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'],
+            label: 'Overdue Amount (₨)',
+            data: recoveryData.map(item => parseFloat(item.total_remaining)),
+            backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#17a2b8', '#6f42c1', '#e83e8c'],
             borderWidth: 1
         }]
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Amount (₨)'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// 2. Recovery Rate by Period Chart
+const recoveryRateCtx = document.getElementById('recoveryRateChart').getContext('2d');
+new Chart(recoveryRateCtx, {
+    type: 'bar',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: 'Recovery Rate (%)',
+            data: recoveryData.map(item => parseFloat(item.recovery_rate)),
+            backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545', '#17a2b8', '#6f42c1', '#e83e8c'],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
         scales: {
             y: {
                 beginAtZero: true,
@@ -527,33 +643,47 @@ new Chart(recoveryCtx, {
                     text: 'Recovery Rate (%)'
                 }
             }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
         }
     }
 });
 
-// Overdue Distribution Chart
-const overdueData = <?= json_encode($recovery_data) ?>;
-const overdueLabels = overdueData.map(item => item.overdue_range);
-const overdueAmounts = overdueData.map(item => parseFloat(item.total_remaining));
+// 3. Payment Status Overview Chart
+const totalAmount = recoveryData.reduce((sum, item) => sum + parseFloat(item.total_amount), 0);
+const totalPaid = recoveryData.reduce((sum, item) => sum + parseFloat(item.total_paid), 0);
+const totalRemaining = recoveryData.reduce((sum, item) => sum + parseFloat(item.total_remaining), 0);
 
-const overdueCtx = document.getElementById('overdueChart').getContext('2d');
-new Chart(overdueCtx, {
+const paymentStatusCtx = document.getElementById('paymentStatusChart').getContext('2d');
+new Chart(paymentStatusCtx, {
     type: 'doughnut',
     data: {
-        labels: overdueLabels,
+        labels: ['Paid Amount', 'Remaining Amount'],
         datasets: [{
-            data: overdueAmounts,
-            backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'],
+            data: [totalPaid, totalRemaining],
+            backgroundColor: ['#28a745', '#dc3545'],
             borderWidth: 2,
             borderColor: '#fff'
         }]
     },
     options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const value = context.parsed;
+                        const percentage = ((value / (totalPaid + totalRemaining)) * 100).toFixed(1);
+                        return context.label + ': ₨' + value.toLocaleString() + ' (' + percentage + '%)';
+                    }
+                }
             }
         }
     }

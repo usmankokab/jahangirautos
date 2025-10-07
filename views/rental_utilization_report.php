@@ -45,7 +45,10 @@ if (!$rents_table_exists) {
 
     $where_clause = implode(" AND ", $where_conditions);
 
-    // Simplified rental utilization analysis
+    // Calculate period length in days
+    $period_days = (strtotime($to_date) - strtotime($from_date)) / (60 * 60 * 24) + 1;
+
+    // Rental utilization analysis with actual calculations
     $utilization_query = "
         SELECT
             r.product_name as product_name,
@@ -53,19 +56,23 @@ if (!$rents_table_exists) {
             COUNT(r.id) as total_rentals,
             AVG(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) as avg_rental_duration,
             COALESCE(SUM(r.daily_rent * DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1), 0) as total_revenue,
-            0 as active_rentals,
-            0 as completed_rentals,
-            0 as utilization_rate,
-            0 as total_rental_days
+            COUNT(CASE WHEN r.end_date >= CURDATE() THEN 1 END) as active_rentals,
+            COUNT(CASE WHEN r.end_date < CURDATE() THEN 1 END) as completed_rentals,
+            -- Calculate utilization as total rented days / total available days (assuming 1 unit per product)
+            ROUND(
+                (SUM(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) /
+                 (? * 1)) * 100, 1
+            ) as utilization_rate,
+            SUM(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) as total_rental_days
         FROM rents r
         WHERE r.start_date <= ? AND (r.end_date >= ? OR r.end_date IS NULL)
         GROUP BY r.product_name
         HAVING total_rentals > 0
-        ORDER BY total_rentals DESC
+        ORDER BY utilization_rate DESC
     ";
 
     $stmt = $conn->prepare($utilization_query);
-    $stmt->bind_param("ss", $to_date, $from_date);
+    $stmt->bind_param("dss", $period_days, $to_date, $from_date);
     $stmt->execute();
     $utilization_data = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
@@ -76,29 +83,37 @@ if (!$rents_table_exists) {
             COUNT(r.id) as total_rentals,
             COALESCE(SUM(r.daily_rent * DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1), 0) as total_rental_revenue,
             AVG(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) as avg_rental_duration,
-            0 as active_rentals,
-            0 as completed_rentals,
-            0 as overall_utilization
+            COUNT(CASE WHEN r.end_date >= CURDATE() THEN 1 END) as active_rentals,
+            COUNT(CASE WHEN r.end_date < CURDATE() THEN 1 END) as completed_rentals,
+            -- Calculate overall utilization as total rented days / total available days
+            ROUND(
+                (SUM(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) /
+                 (? * COUNT(DISTINCT r.product_name))) * 100, 1
+            ) as overall_utilization
         FROM rents r
         WHERE r.start_date <= ? AND (r.end_date >= ? OR r.end_date IS NULL)
     ";
 
     $summary_stmt = $conn->prepare($summary_query);
-    $summary_stmt->bind_param("ss", $to_date, $from_date);
+    $summary_stmt->bind_param("dss", $period_days, $to_date, $from_date);
     $summary_stmt->execute();
     $summary = $summary_stmt->get_result()->fetch_assoc();
 
-    // Monthly utilization trend (simplified)
+    // Monthly utilization trend with actual calculations
     $trend_query = "
         SELECT
             DATE_FORMAT(r.start_date, '%Y-%m') as month,
             COUNT(r.id) as rentals_count,
-            0 as utilization_rate,
-            0 as rental_days,
-            0 as days_in_month
+            -- Calculate monthly utilization
+            ROUND(
+                (SUM(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) /
+                 (DAY(LAST_DAY(r.start_date)) * COUNT(DISTINCT r.product_name))) * 100, 1
+            ) as utilization_rate,
+            SUM(DATEDIFF(COALESCE(r.end_date, CURDATE()), r.start_date) + 1) as rental_days,
+            DAY(LAST_DAY(r.start_date)) as days_in_month
         FROM rents r
         WHERE r.start_date BETWEEN ? AND ?
-        GROUP BY DATE_FORMAT(r.start_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(r.start_date, '%Y-%m'), DAY(LAST_DAY(r.start_date))
         ORDER BY month
     ";
 
@@ -277,7 +292,9 @@ if (!$rents_table_exists) {
                     <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Utilization Trend</h5>
                 </div>
                 <div class="card-body">
-                    <canvas id="utilizationTrendChart"></canvas>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="utilizationTrendChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -311,7 +328,7 @@ if (!$rents_table_exists) {
                                     <th>Total Rentals</th>
                                     <th>Avg Duration</th>
                                     <th>Total Revenue</th>
-                                    <th>Status</th>
+                                    <th>Utilization Rate</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -324,7 +341,9 @@ if (!$rents_table_exists) {
                                     <td><?= number_format($product['avg_rental_duration'], 1) ?> days</td>
                                     <td>₨<?= number_format($product['total_revenue'], 0) ?></td>
                                     <td>
-                                        <span class="badge bg-success">Active</span>
+                                        <span class="badge bg-<?= $product['utilization_rate'] >= 70 ? 'success' : ($product['utilization_rate'] >= 40 ? 'warning' : 'danger') ?>">
+                                            <?= number_format($product['utilization_rate'], 1) ?>%
+                                        </span>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -365,6 +384,7 @@ new Chart(trendCtx, {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         scales: {
             y: {
                 beginAtZero: true,
@@ -380,9 +400,9 @@ new Chart(trendCtx, {
 
 // Utilization Distribution Pie Chart
 const utilizationLevels = <?= json_encode($utilization_data) ?>;
-const highUtil = utilizationLevels.filter(p => p.utilization_rate >= 70).length;
-const mediumUtil = utilizationLevels.filter(p => p.utilization_rate >= 40 && p.utilization_rate < 70).length;
-const lowUtil = utilizationLevels.filter(p => p.utilization_rate < 40).length;
+const highUtil = utilizationLevels.filter(p => parseFloat(p.utilization_rate) >= 70).length;
+const mediumUtil = utilizationLevels.filter(p => parseFloat(p.utilization_rate) >= 40 && parseFloat(p.utilization_rate) < 70).length;
+const lowUtil = utilizationLevels.filter(p => parseFloat(p.utilization_rate) < 40).length;
 
 const pieCtx = document.getElementById('utilizationPieChart').getContext('2d');
 new Chart(pieCtx, {

@@ -549,63 +549,91 @@ $top_overdue_customers = $top_overdue_stmt->get_result()->fetch_all(MYSQLI_ASSOC
 
 <script>
 // Payment Status Chart
+console.log('JavaScript Debug - Creating status chart');
 const statusData = <?= json_encode($payment_statuses) ?>;
+console.log('JavaScript Debug - statusData:', statusData);
 const statusLabels = statusData.map(item => item.status);
 const statusCounts = statusData.map(item => parseInt(item.count));
+console.log('JavaScript Debug - statusLabels:', statusLabels, 'statusCounts:', statusCounts);
 
-const statusCtx = document.getElementById('statusChart').getContext('2d');
-new Chart(statusCtx, {
-    type: 'doughnut',
-    data: {
-        labels: statusLabels,
-        datasets: [{
-            data: statusCounts,
-            backgroundColor: ['#28a745', '#dc3545', '#6c757d'],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
-        }
-    }
-});
-
-// Overdue Periods Chart
-const overdueData = <?= json_encode($overdue_periods) ?>;
-const overdueLabels = overdueData.map(item => item.period);
-const overdueCounts = overdueData.map(item => parseInt(item.count));
-
-const overdueCtx = document.getElementById('overdueChart').getContext('2d');
-new Chart(overdueCtx, {
-    type: 'bar',
-    data: {
-        labels: overdueLabels,
-        datasets: [{
-            label: 'Number of Overdue Rents',
-            data: overdueCounts,
-            backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d'],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            y: {
-                beginAtZero: true,
-                title: {
-                    display: true,
-                    text: 'Number of Rentals'
+const statusCanvas = document.getElementById('statusChart');
+console.log('JavaScript Debug - statusCanvas exists:', !!statusCanvas);
+if (statusCanvas) {
+    const statusCtx = statusCanvas.getContext('2d');
+    try {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusCounts,
+                    backgroundColor: ['#28a745', '#dc3545', '#6c757d'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
-        }
+        });
+        console.log('JavaScript Debug - Status chart created successfully');
+    } catch (error) {
+        console.error('JavaScript Debug - Error creating status chart:', error);
     }
-});
+} else {
+    console.error('JavaScript Debug - statusChart canvas not found');
+}
+
+// Overdue Periods Chart
+console.log('JavaScript Debug - Creating overdue chart');
+const overdueData = <?= json_encode($overdue_periods) ?>;
+console.log('JavaScript Debug - overdueData:', overdueData);
+const overdueLabels = overdueData.map(item => item.period);
+const overdueCounts = overdueData.map(item => parseInt(item.count));
+console.log('JavaScript Debug - overdueLabels:', overdueLabels, 'overdueCounts:', overdueCounts);
+
+const overdueCanvas = document.getElementById('overdueChart');
+console.log('JavaScript Debug - overdueCanvas exists:', !!overdueCanvas);
+if (overdueCanvas) {
+    const overdueCtx = overdueCanvas.getContext('2d');
+    try {
+        new Chart(overdueCtx, {
+            type: 'bar',
+            data: {
+                labels: overdueLabels,
+                datasets: [{
+                    label: 'Number of Overdue Rents',
+                    data: overdueCounts,
+                    backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#6c757d'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Rentals'
+                        }
+                    }
+                }
+            }
+        });
+        console.log('JavaScript Debug - Overdue chart created successfully');
+    } catch (error) {
+        console.error('JavaScript Debug - Error creating overdue chart:', error);
+    }
+} else {
+    console.error('JavaScript Debug - overdueChart canvas not found');
+}
 
 function exportToExcel() {
     let csv = 'Rent Payment Report\n\n';
