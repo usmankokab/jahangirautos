@@ -33,7 +33,7 @@ $where_clause = implode(" AND ", $where_conditions);
 $overdue_query = "
     SELECT
         i.id as installment_id,
-        ROW_NUMBER() OVER (PARTITION BY i.sale_id ORDER BY i.due_date) as installment_number,
+        (SELECT COUNT(*) FROM installments i2 WHERE i2.sale_id = i.sale_id AND i2.due_date <= i.due_date) as installment_number,
         i.due_date,
         i.amount,
         i.paid_amount,
@@ -64,8 +64,15 @@ $overdue_query = "
 ";
 
 $stmt = $conn->prepare($overdue_query);
+if (!$stmt) {
+    error_log("Prepare failed: " . $conn->error);
+    die("Database error. Please check logs.");
+}
 $stmt->bind_param($types . "ssss", ...array_merge($params, [$sort_by, $sort_by, $sort_by, $sort_by]));
-$stmt->execute();
+if (!$stmt->execute()) {
+    error_log("Execute failed: " . $stmt->error);
+    die("Database error. Please check logs.");
+}
 $overdue_installments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Debug logging for main overdue query
@@ -75,10 +82,10 @@ error_log("Overdue Report - Main Query Count: " . count($overdue_installments));
 $summary_query = "
     SELECT
         COUNT(*) as total_overdue,
-        SUM(i.amount) as total_amount_due,
+        COALESCE(SUM(i.amount), 0) as total_amount_due,
         COALESCE(SUM(i.paid_amount), 0) as total_amount_paid,
-        SUM(i.amount - COALESCE(i.paid_amount, 0)) as total_remaining,
-        AVG(DATEDIFF(CURDATE(), i.due_date)) as avg_days_overdue,
+        COALESCE(SUM(i.amount - COALESCE(i.paid_amount, 0)), 0) as total_remaining,
+        COALESCE(AVG(DATEDIFF(CURDATE(), i.due_date)), 0) as avg_days_overdue,
         COUNT(CASE WHEN i.status = 'unpaid' THEN 1 END) as fully_unpaid,
         COUNT(CASE WHEN i.status = 'partial' THEN 1 END) as partially_paid,
         COUNT(DISTINCT c.id) as affected_customers,
@@ -90,9 +97,26 @@ $summary_query = "
 ";
 
 $summary_stmt = $conn->prepare($summary_query);
+if (!$summary_stmt) {
+    error_log("Summary prepare failed: " . $conn->error);
+    die("Database error. Please check logs.");
+}
 $summary_stmt->bind_param("ss", $from_date, $to_date);
-$summary_stmt->execute();
-$summary = $summary_stmt->get_result()->fetch_assoc();
+if (!$summary_stmt->execute()) {
+    error_log("Summary execute failed: " . $summary_stmt->error);
+    die("Database error. Please check logs.");
+}
+$summary = $summary_stmt->get_result()->fetch_assoc() ?: [
+    'total_overdue' => 0,
+    'total_amount_due' => 0,
+    'total_amount_paid' => 0,
+    'total_remaining' => 0,
+    'avg_days_overdue' => 0,
+    'fully_unpaid' => 0,
+    'partially_paid' => 0,
+    'affected_customers' => 0,
+    'affected_sales' => 0
+];
 $summary_stmt->close();
 
 // Total overdue amount (filtered by sale date)
@@ -113,9 +137,9 @@ $customer_overdue_query = "
         c.phone,
         c.cnic,
         COUNT(i.id) as overdue_installments,
-        SUM(i.amount - i.paid_amount) as total_overdue_amount,
-        AVG(DATEDIFF(CURDATE(), i.due_date)) as avg_days_overdue,
-        MAX(DATEDIFF(CURDATE(), i.due_date)) as max_days_overdue,
+        COALESCE(SUM(i.amount - COALESCE(i.paid_amount, 0)), 0) as total_overdue_amount,
+        COALESCE(AVG(DATEDIFF(CURDATE(), i.due_date)), 0) as avg_days_overdue,
+        COALESCE(MAX(DATEDIFF(CURDATE(), i.due_date)), 0) as max_days_overdue,
         GROUP_CONCAT(DISTINCT p.name SEPARATOR ', ') as products
     FROM customers c
     JOIN sales s ON c.id = s.customer_id
@@ -127,8 +151,15 @@ $customer_overdue_query = "
 ";
 
 $customer_stmt = $conn->prepare($customer_overdue_query);
+if (!$customer_stmt) {
+    error_log("Customer prepare failed: " . $conn->error);
+    die("Database error. Please check logs.");
+}
 $customer_stmt->bind_param("ss", $from_date, $to_date);
-$customer_stmt->execute();
+if (!$customer_stmt->execute()) {
+    error_log("Customer execute failed: " . $customer_stmt->error);
+    die("Database error. Please check logs.");
+}
 $customer_overdue = $customer_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $customer_stmt->close();
 
@@ -148,10 +179,10 @@ $recovery_query = "
             ELSE '180+ days'
         END as overdue_range,
         COUNT(*) as installment_count,
-        SUM(amount) as total_amount,
+        COALESCE(SUM(amount), 0) as total_amount,
         COALESCE(SUM(paid_amount), 0) as total_paid,
-        SUM(amount - COALESCE(paid_amount, 0)) as total_remaining,
-        ROUND((COALESCE(SUM(paid_amount), 0) / SUM(amount)) * 100, 2) as recovery_rate
+        COALESCE(SUM(amount - COALESCE(paid_amount, 0)), 0) as total_remaining,
+        ROUND(CASE WHEN COALESCE(SUM(amount), 0) > 0 THEN (COALESCE(SUM(paid_amount), 0) / SUM(amount)) * 100 ELSE 0 END, 2) as recovery_rate
     FROM (
         SELECT
             i.amount,
@@ -175,8 +206,15 @@ $recovery_query = "
 ";
 
 $recovery_stmt = $conn->prepare($recovery_query);
+if (!$recovery_stmt) {
+    error_log("Recovery prepare failed: " . $conn->error);
+    die("Database error. Please check logs.");
+}
 $recovery_stmt->bind_param("ss", $from_date, $to_date);
-$recovery_stmt->execute();
+if (!$recovery_stmt->execute()) {
+    error_log("Recovery execute failed: " . $recovery_stmt->error);
+    die("Database error. Please check logs.");
+}
 $recovery_data = $recovery_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $recovery_stmt->close();
 ?>
@@ -221,7 +259,7 @@ $recovery_stmt->close();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Installments</div>
-                            <div class="h4 mb-0"><?= number_format($summary['total_overdue']) ?></div>
+                            <div class="h4 mb-0"><?= number_format($summary['total_overdue'] ?? 0) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-calendar-x fa-2x"></i>
@@ -237,7 +275,7 @@ $recovery_stmt->close();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Affected Customers</div>
-                            <div class="h4 mb-0"><?= number_format($summary['affected_customers']) ?></div>
+                            <div class="h4 mb-0"><?= number_format($summary['affected_customers'] ?? 0) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-people fa-2x"></i>
@@ -253,7 +291,7 @@ $recovery_stmt->close();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Avg Days Overdue</div>
-                            <div class="h4 mb-0"><?= number_format($summary['avg_days_overdue'], 1) ?></div>
+                            <div class="h4 mb-0"><?= number_format($summary['avg_days_overdue'] ?? 0, 1) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-clock fa-2x"></i>
@@ -269,7 +307,7 @@ $recovery_stmt->close();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Fully Unpaid</div>
-                            <div class="h4 mb-0"><?= number_format($summary['fully_unpaid']) ?></div>
+                            <div class="h4 mb-0"><?= number_format($summary['fully_unpaid'] ?? 0) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-x-circle fa-2x"></i>
@@ -285,7 +323,7 @@ $recovery_stmt->close();
                     <div class="d-flex justify-content-between">
                         <div>
                             <div class="small">Partially Paid</div>
-                            <div class="h4 mb-0"><?= number_format($summary['partially_paid']) ?></div>
+                            <div class="h4 mb-0"><?= number_format($summary['partially_paid'] ?? 0) ?></div>
                         </div>
                         <div class="align-self-center">
                             <i class="bi bi-dash-circle fa-2x"></i>
@@ -545,12 +583,12 @@ $recovery_stmt->close();
                                         <span class="badge bg-danger"><?= $customer['overdue_installments'] ?></span>
                                     </td>
                                     <td>
-                                        <strong class="text-danger">₨<?= number_format($customer['total_overdue_amount'], 0) ?></strong>
+                                        <strong class="text-danger">₨<?= number_format($customer['total_overdue_amount'] ?? 0, 0) ?></strong>
                                     </td>
-                                    <td><?= number_format($customer['avg_days_overdue'], 1) ?> days</td>
+                                    <td><?= number_format($customer['avg_days_overdue'] ?? 0, 1) ?> days</td>
                                     <td>
-                                        <span class="badge bg-<?= $customer['max_days_overdue'] > 90 ? 'danger' : ($customer['max_days_overdue'] > 30 ? 'warning' : 'secondary') ?>">
-                                            <?= $customer['max_days_overdue'] ?> days
+                                        <span class="badge bg-<?= ($customer['max_days_overdue'] ?? 0) > 90 ? 'danger' : (($customer['max_days_overdue'] ?? 0) > 30 ? 'warning' : 'secondary') ?>">
+                                            <?= $customer['max_days_overdue'] ?? 0 ?> days
                                         </span>
                                     </td>
                                     <td>

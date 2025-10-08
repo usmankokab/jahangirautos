@@ -25,4 +25,12 @@ $conn = new mysqli($host, $username, $password, $dbname);
 if ($conn->connect_error) {
     die('Connection failed: ' . $conn->connect_error);
 }
+
+// Set charset and collation to avoid collation mismatches
+$conn->set_charset("utf8mb4");
+if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === 'localhost') {
+    $conn->query("SET collation_connection = 'utf8mb4_general_ci'");
+} else {
+    $conn->query("SET collation_connection = 'utf8mb4_uca1400_ai_ci'");
+}
 ?>
