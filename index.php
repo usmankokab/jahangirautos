@@ -23,7 +23,7 @@ $stats_query = "
         (SELECT COALESCE(SUM(total_amount + ((total_amount * interest_rate) / 100)), 0) FROM sales) as total_sales_amount,
         (SELECT COALESCE(SUM(CASE WHEN rent_type = 'daily' THEN daily_rent * DATEDIFF(end_date, start_date) ELSE total_rent END), 0) FROM rents) as total_rent_amount,
         (SELECT COUNT(*) FROM installments WHERE status IN ('unpaid', 'partial') AND due_date <= CURDATE() AND DAY(CURDATE()) >= 10) as overdue_count,
-        (SELECT COALESCE(SUM(amount - paid_amount), 0) FROM installments WHERE status IN ('unpaid', 'partial')) as pending_amount
+        (SELECT COALESCE(SUM(amount - COALESCE(paid_amount, 0)), 0) FROM installments WHERE status IN ('unpaid', 'partial')) as pending_amount
 ";
 $stats_result = $conn->query($stats_query);
 $stats = $stats_result->fetch_assoc();
