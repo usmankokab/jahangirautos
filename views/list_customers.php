@@ -401,7 +401,7 @@ document.getElementById('addCustomerForm').addEventListener('submit', function(e
     }
   })
   .catch(error => {
-    alert('Error adding customer');
+    alert('Failed to add customer. User with this CNIC already exists');
   });
 });
 

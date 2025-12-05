@@ -12,7 +12,7 @@ $overdue_installments_count = 0;
 $overdue_rents_count = 0;
 try {
     // Count overdue installments
-    $installments_query = "SELECT COUNT(*) as count FROM installments WHERE status != 'paid' AND due_date < CURDATE()";
+    $installments_query = "SELECT COUNT(*) as count FROM installments WHERE status != 'paid' AND due_date < CURDATE() AND DAY(CURDATE()) >= 10";
     $installments_result = $conn->query($installments_query);
     $overdue_installments_count = $installments_result->fetch_assoc()['count'];
 

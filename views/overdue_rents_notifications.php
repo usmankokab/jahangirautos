@@ -82,7 +82,7 @@ $remaining_amount = $total_amount - $total_paid;
     </div>
 
     <!-- Summary Cards -->
-    <div class="row mb-4">
+    <div class="row mb-4 no-print">
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="card bg-warning text-white h-100">
                 <div class="card-body">
@@ -158,7 +158,7 @@ $remaining_amount = $total_amount - $total_paid;
     </div>
 
     <!-- Search Form -->
-    <div class="card mb-4">
+    <div class="card mb-4 no-print">
         <div class="card-header">
             <h5 class="mb-0"><i class="bi bi-search me-2"></i>Search Customers</h5>
         </div>
@@ -207,13 +207,13 @@ $remaining_amount = $total_amount - $total_paid;
                 </div>
                 <div class="card-body">
                     <?php if (empty($overdue_rents)): ?>
-                        <div class="text-center py-5">
+                        <div class="text-center py-5 screen-only">
                             <i class="bi bi-check-circle-fill text-success fa-4x mb-3"></i>
                             <h4 class="text-success">No Overdue Rents!</h4>
                             <p class="text-muted">All rent payments are up to date. Great job!</p>
                         </div>
                     <?php else: ?>
-                        <div class="row">
+                        <div class="row screen-only">
                             <?php foreach ($overdue_rents as $rent): ?>
                                 <div class="col-xl-6 mb-4">
                                     <div class="card border-warning h-100">
@@ -359,6 +359,37 @@ $remaining_amount = $total_amount - $total_paid;
                                 </div>
                             <?php endforeach; ?>
                         </div>
+
+                        <!-- Print-only Table -->
+                        <div class="print-only">
+                            <h3>Overdue Rents Report</h3>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Name</th>
+                                        <th>CNIC</th>
+                                        <th>Phone</th>
+                                        <th>Due Date</th>
+                                        <th>Amount Due</th>
+                                        <th>Paid Amount</th>
+                                        <th>Days Overdue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($overdue_rents as $rent): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($rent['customer_name']) ?></td>
+                                        <td><?= htmlspecialchars($rent['customer_cnic']) ?></td>
+                                        <td><?= htmlspecialchars($rent['customer_phone']) ?></td>
+                                        <td><?= date('M d, Y', strtotime($rent['rent_date'])) ?></td>
+                                        <td>₨<?= number_format($rent['amount'], 0) ?></td>
+                                        <td>₨<?= number_format($rent['paid_amount'], 0) ?></td>
+                                        <td><?= $rent['days_overdue'] ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -424,6 +455,14 @@ setInterval(function() {
     font-size: 0.75rem;
 }
 
+.screen-only {
+    display: block;
+}
+
+.print-only {
+    display: none;
+}
+
 @media print {
     .no-print {
         display: none !important;
@@ -431,6 +470,12 @@ setInterval(function() {
     .card {
         border: 1px solid #dee2e6 !important;
         box-shadow: none !important;
+    }
+    .screen-only {
+        display: none !important;
+    }
+    .print-only {
+        display: block !important;
     }
 }
 </style>

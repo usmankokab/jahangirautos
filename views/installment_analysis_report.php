@@ -44,7 +44,7 @@ $summary_query = "
         COUNT(CASE WHEN i.status = 'paid' THEN 1 END) as paid_count,
         COUNT(CASE WHEN i.status = 'partial' THEN 1 END) as partial_count,
         COUNT(CASE WHEN i.status = 'unpaid' THEN 1 END) as unpaid_count,
-        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_count
+        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 END) as overdue_count
     FROM installments i
     JOIN sales s ON i.sale_id = s.id
     JOIN customers c ON s.customer_id = c.id
@@ -64,7 +64,7 @@ $collection_trend_query = "
         SUM(i.amount) as amount_due,
         SUM(i.paid_amount) as amount_collected,
         COUNT(CASE WHEN i.status = 'paid' THEN 1 END) as paid_count,
-        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_count
+        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 END) as overdue_count
     FROM installments i
     JOIN sales s ON i.sale_id = s.id
     JOIN customers c ON s.customer_id = c.id
@@ -86,7 +86,7 @@ $customer_behavior_query = "
         SUM(i.amount) as total_due,
         SUM(i.paid_amount) as total_paid,
         COUNT(CASE WHEN i.status = 'paid' THEN 1 END) as paid_count,
-        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_count,
+        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 END) as overdue_count,
         ROUND((SUM(i.paid_amount) / SUM(i.amount)) * 100, 2) as payment_rate
     FROM installments i
     JOIN sales s ON i.sale_id = s.id

@@ -33,7 +33,7 @@ if ($user['role_name'] === 'customer') {
                 (SELECT COUNT(*) FROM customers) as total_customers,
                 (SELECT COUNT(*) FROM sales) as total_sales,
                 (SELECT COUNT(*) FROM products) as total_products,
-                (SELECT COUNT(*) FROM installments WHERE status = 'unpaid' AND due_date < CURDATE()) as overdue_installments
+                (SELECT COUNT(*) FROM installments WHERE status = 'unpaid' AND due_date < CURDATE() AND DAY(CURDATE()) >= 10) as overdue_installments
         ";
         $stats_result = $conn->query($stats_query);
         $stats = $stats_result->fetch_assoc() ?: [

@@ -25,7 +25,7 @@ $sales_query = "
            SUM(CASE WHEN i.status = 'paid' THEN 1 ELSE 0 END) as paid_installments,
            SUM(CASE WHEN i.status = 'unpaid' THEN 1 ELSE 0 END) as unpaid_installments,
            SUM(CASE WHEN i.status = 'partial' THEN 1 ELSE 0 END) as partial_installments,
-           SUM(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 ELSE 0 END) as overdue_installments,
+           SUM(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 ELSE 0 END) as overdue_installments,
            COALESCE(SUM(i.paid_amount), 0) as total_paid,
            COALESCE(SUM(CASE WHEN i.status IN ('unpaid', 'partial') THEN i.amount - COALESCE(i.paid_amount, 0) ELSE 0 END), 0) as remaining_amount,
            COALESCE(SUM(CASE WHEN i.status IN ('unpaid', 'partial') THEN i.amount - COALESCE(i.paid_amount, 0) ELSE 0 END), 0) as total_remaining

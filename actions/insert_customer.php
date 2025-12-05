@@ -1,8 +1,11 @@
 <?php
+file_put_contents('../debug_log.txt', "Script started\n", FILE_APPEND);
 include '../config/db.php';
 include '../config/auth.php';
 
 $auth->requireLogin();
+
+$user_id = $_SESSION['user_id'];
 
 // Initialize variables
 $success = false;
@@ -17,10 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $addr = $_POST['address'];
     $ref = $_POST['guarantor_1'];
     $ref2 = $_POST['guarantor_2'];
-    $guarantor_1_phone = $_POST['guarantor_1_phone'];
-    $guarantor_2_phone = $_POST['guarantor_2_phone'];
-    $guarantor_1_address = $_POST['guarantor_1_address'];
-    $guarantor_2_address = $_POST['guarantor_2_address'];
 
     // Handle image upload
     if (!empty($_FILES["customer_image"]["name"])) {
@@ -47,12 +46,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Insert into database
-    $stmt = $conn->prepare("INSERT INTO customers (name, cnic, phone, address, guarantor_1, guarantor_2, guarantor_1_phone, guarantor_2_phone, guarantor_1_address, guarantor_2_address, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO customers (name, cnic, phone, address, guarantor_1, guarantor_2, image_path, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
+    $error_message = 'Failed to add customer';
 
     if ($stmt) {
-        $stmt->bind_param("sssssssssss", $name, $cnic, $phone, $addr, $ref, $ref2, $guarantor_1_phone, $guarantor_2_phone, $guarantor_1_address, $guarantor_2_address, $image_path);
+        $stmt->bind_param("sssssssi", $name, $cnic, $phone, $addr, $ref, $ref2, $image_path, $user_id);
         $success = $stmt->execute();
+        if (!$success) {
+            $log_message = "Insert customer failed: errno=" . $stmt->errno . ", error=" . $stmt->error . "\n";
+            file_put_contents('../debug_log.txt', $log_message, FILE_APPEND);
+            if ($stmt->errno == 1062) {
+                $error_message = 'Customer with this CNIC already exists';
+            }
+        }
         $stmt->close();
+    } else {
+        $log_message = "Prepare statement failed: " . $conn->error . "\n";
+        file_put_contents('../debug_log.txt', $log_message, FILE_APPEND);
+        $success = false;
     }
 
     $conn->close();
@@ -62,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check if this is an AJAX request
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             // Return JSON response for AJAX
+            file_put_contents('../debug_log.txt', "AJAX success\n", FILE_APPEND);
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
@@ -75,14 +88,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check if this is an AJAX request
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             // Return JSON response for AJAX
+            file_put_contents('../debug_log.txt', "AJAX error: $error_message\n", FILE_APPEND);
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Failed to add customer'
+                'message' => $error_message
             ]);
         } else {
             // Regular form submission - redirect
-            header('Location: ' . BASE_URL . '/views/add_customer.php?error=' . urlencode('Failed to add customer'));
+            header('Location: ' . BASE_URL . '/views/add_customer.php?error=' . urlencode($error_message));
         }
     }
     exit();

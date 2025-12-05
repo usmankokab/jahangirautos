@@ -37,7 +37,7 @@ $product_performance_query = "
         SUM(i.amount) as total_installment_due,
         SUM(i.paid_amount) as total_installment_paid,
         COUNT(CASE WHEN i.status = 'paid' THEN 1 END) as paid_installments,
-        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_installments,
+        COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 END) as overdue_installments,
         ROUND((SUM(i.paid_amount) / NULLIF(SUM(i.amount), 0)) * 100, 2) as payment_rate,
         MIN(s.sale_date) as first_sale_date,
         MAX(s.sale_date) as last_sale_date,
@@ -122,7 +122,7 @@ $sales_trend_query = "
         SELECT
             p.id,
             SUM(s.total_amount) as total_revenue,
-            COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() THEN 1 END) as overdue_installments,
+            COUNT(CASE WHEN i.status = 'unpaid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10 THEN 1 END) as overdue_installments,
             ROUND((SUM(i.paid_amount) / NULLIF(SUM(i.amount), 0)) * 100, 2) as payment_rate
         FROM products p
         LEFT JOIN sales s ON p.id = s.product_id AND $where_clause

@@ -12,7 +12,7 @@ $search_cnic = $_GET['search_cnic'] ?? '';
 $search_phone = $_GET['search_phone'] ?? '';
 
 // Build WHERE conditions for search
-$where_conditions = ["i.status != 'paid' AND i.due_date < CURDATE()"];
+$where_conditions = ["i.status != 'paid' AND i.due_date < CURDATE() AND DAY(CURDATE()) >= 10"];
 
 if (!empty($search_name)) {
     $where_conditions[] = "c.name LIKE '%" . $conn->real_escape_string($search_name) . "%'";
@@ -84,7 +84,7 @@ $remaining_amount = $total_amount - $total_paid;
     </div>
 
     <!-- Summary Cards -->
-    <div class="row mb-4">
+    <div class="row mb-4 no-print">
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="card bg-danger text-white h-100">
                 <div class="card-body">
@@ -160,7 +160,7 @@ $remaining_amount = $total_amount - $total_paid;
     </div>
 
     <!-- Search Form -->
-    <div class="card mb-4">
+    <div class="card mb-4 no-print">
         <div class="card-header">
             <h5 class="mb-0"><i class="bi bi-search me-2"></i>Search Customers</h5>
         </div>
@@ -209,13 +209,13 @@ $remaining_amount = $total_amount - $total_paid;
                 </div>
                 <div class="card-body">
                     <?php if (empty($overdue_installments)): ?>
-                        <div class="text-center py-5">
+                        <div class="text-center py-5 screen-only">
                             <i class="bi bi-check-circle-fill text-success fa-4x mb-3"></i>
                             <h4 class="text-success">No Overdue Installments!</h4>
                             <p class="text-muted">All installments are up to date. Great job!</p>
                         </div>
                     <?php else: ?>
-                        <div class="row">
+                        <div class="row screen-only">
                             <?php foreach ($overdue_installments as $installment): ?>
                                 <div class="col-xl-6 mb-4">
                                     <div class="card border-danger h-100">
@@ -353,6 +353,39 @@ $remaining_amount = $total_amount - $total_paid;
                                 </div>
                             <?php endforeach; ?>
                         </div>
+
+                        <!-- Print-only Table -->
+                        <div class="print-only">
+                            <h3>Overdue Installments Report</h3>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Name</th>
+                                        <th>CNIC</th>
+                                        <th>Phone</th>
+                                        <th>Product</th>
+                                        <th>Installment #</th>
+                                        <th>Due Date</th>
+                                        <th>Amount Due</th>
+                                        <th>Days Overdue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($overdue_installments as $installment): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($installment['customer_name']) ?></td>
+                                        <td><?= htmlspecialchars($installment['customer_cnic']) ?></td>
+                                        <td><?= htmlspecialchars($installment['customer_phone']) ?></td>
+                                        <td><?= htmlspecialchars($installment['product_name']) ?> <?= htmlspecialchars($installment['model']) ? '(' . htmlspecialchars($installment['model']) . ')' : '' ?></td>
+                                        <td><?= $installment['installment_number'] ?></td>
+                                        <td><?= date('M d, Y', strtotime($installment['due_date'])) ?></td>
+                                        <td>₨<?= number_format($installment['amount'], 0) ?></td>
+                                        <td><?= $installment['days_overdue'] ?></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -418,6 +451,14 @@ setInterval(function() {
     font-size: 0.75rem;
 }
 
+.screen-only {
+    display: block;
+}
+
+.print-only {
+    display: none;
+}
+
 @media print {
     .no-print {
         display: none !important;
@@ -425,6 +466,12 @@ setInterval(function() {
     .card {
         border: 1px solid #dee2e6 !important;
         box-shadow: none !important;
+    }
+    .screen-only {
+        display: none !important;
+    }
+    .print-only {
+        display: block !important;
     }
 }
 </style>

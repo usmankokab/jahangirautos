@@ -15,7 +15,7 @@ $status_filter = $_GET['status'] ?? 'all';
 $sort_by = $_GET['sort_by'] ?? 'days_overdue';
 
 // Build WHERE clause
-$where_conditions = ["i.due_date <= CURDATE()"];
+$where_conditions = ["i.due_date <= CURDATE() AND DAY(CURDATE()) >= 10"];
 $params = [];
 $types = "";
 
@@ -93,7 +93,7 @@ $summary_query = "
     FROM installments i
     JOIN sales s ON i.sale_id = s.id
     JOIN customers c ON s.customer_id = c.id
-    WHERE i.due_date <= CURDATE() AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
+    WHERE i.due_date <= CURDATE() AND DAY(CURDATE()) >= 10 AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
 ";
 
 $summary_stmt = $conn->prepare($summary_query);
@@ -145,7 +145,7 @@ $customer_overdue_query = "
     JOIN sales s ON c.id = s.customer_id
     JOIN installments i ON s.id = i.sale_id
     JOIN products p ON s.product_id = p.id
-    WHERE i.due_date <= CURDATE() AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
+    WHERE i.due_date <= CURDATE() AND DAY(CURDATE()) >= 10 AND i.status != 'paid' AND s.sale_date BETWEEN ? AND ?
     GROUP BY c.id, c.name, c.phone, c.cnic
     ORDER BY total_overdue_amount DESC
 ";
@@ -190,7 +190,7 @@ $recovery_query = "
             DATEDIFF(CURDATE(), i.due_date) as days_overdue
         FROM installments i
         JOIN sales s ON i.sale_id = s.id
-        WHERE i.due_date <= CURDATE() AND i.status IN ('unpaid', 'partial') AND s.sale_date BETWEEN ? AND ?
+        WHERE i.due_date <= CURDATE() AND DAY(CURDATE()) >= 10 AND i.status IN ('unpaid', 'partial') AND s.sale_date BETWEEN ? AND ?
     ) overdue_data
     GROUP BY overdue_range
     ORDER BY

@@ -8,6 +8,14 @@ if (!$auth->isLoggedIn()) {
 }
 
 include 'config/db.php';
+include 'includes/permissions.php';
+
+// Check if user has permission to view dashboard
+if (!check_permission('dashboard', 'view')) {
+    header("Location: " . BASE_URL . "/views/overdue_installments_notifications.php");
+    exit();
+}
+
 include 'includes/header.php';
 
 // Get current date for default filters

@@ -5,7 +5,7 @@
 require_once __DIR__ . '/app.php';
 
 // Environment-aware DB credentials
-if (isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST'] === 'localhost') {
+if (isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || $_SERVER['HTTP_HOST'] === '127.0.0.1')) {
     $host     = 'localhost';
     $dbname   = 'installment_db';
     $username = 'root';

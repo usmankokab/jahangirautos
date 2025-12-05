@@ -40,7 +40,7 @@ if ($current_user['role_name'] === 'customer') {
 }
 
 $saleQ   = $conn->prepare("
-  SELECT s.sale_date,c.name,p.name,s.monthly_installment,
+  SELECT s.sale_date, c.name, c.phone, c.address, p.name, p.model, p.price, s.monthly_installment, s.down_payment,
          c.guarantor_1, c.guarantor_1_phone, c.guarantor_1_address,
          c.guarantor_2, c.guarantor_2_phone, c.guarantor_2_address
   FROM sales s
@@ -50,9 +50,21 @@ $saleQ   = $conn->prepare("
  ");
 $saleQ->bind_param("i",$sale_id);
 $saleQ->execute();
-$saleQ->bind_result($sd,$cn,$pn,$mi,$g1,$g1_phone,$g1_addr,$g2,$g2_phone,$g2_addr);
+$saleQ->bind_result($sd,$cn,$cphone,$caddr,$pn,$pmodel,$pprice,$mi,$dp,$g1,$g1_phone,$g1_addr,$g2,$g2_phone,$g2_addr);
 $saleQ->fetch();
 $saleQ->close();
+
+// Calculate term from installments count
+$termQ = $conn->prepare("SELECT COUNT(*) as term FROM installments WHERE sale_id=?");
+$termQ->bind_param("i", $sale_id);
+$termQ->execute();
+$termQ->bind_result($term);
+$termQ->fetch();
+$termQ->close();
+
+// Calculate totals (these are calculated later in the file)
+$total_due_all = 0;
+$total_paid_all = 0;
 
 // Pagination variables
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -66,7 +78,7 @@ $types = "i";
 
 // Auto-apply overdue filter if coming from notifications
 if (isset($_GET['filter_overdue']) && $_GET['filter_overdue'] == '1') {
-  $filter_sql .= " AND status IN ('unpaid', 'partial') AND due_date < CURDATE()";
+  $filter_sql .= " AND status IN ('unpaid', 'partial') AND due_date < CURDATE() AND DAY(CURDATE()) >= 10";
 }
 
 if (!empty($_GET['status'])) {
@@ -116,30 +128,93 @@ $sumQ->execute();
 $sumQ->bind_result($total_due_all, $total_paid_all);
 $sumQ->fetch();
 $sumQ->close();
+
+// Now update the sale information table with calculated values
 ?>
 
 <div class="container-fluid">
   <div class="d-flex justify-content-between mb-2">
-    <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;">Installments for <?= htmlspecialchars($pn) ?> (<?= htmlspecialchars($cn) ?>)</h2>
+    <h2 class="mb-0" style="color: #0d6efd; font-weight: bold;"><?= htmlspecialchars($cn) ?></h2>
     <div class="d-flex gap-2 no-print">
       <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
     </div>
   </div>
   
-  <div class="alert alert-info mb-3">
-    <strong>Sale Date:</strong> <?= $sd ?> | <strong>Monthly Installment:</strong> ₨<?= number_format($mi,0) ?>
+  <!-- Current Sale Information Card -->
+  <div class="card mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Current Sale Information</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-borderless mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Product</th>
+              <th>Model</th>
+              <th>Price</th>
+              <th>Due</th>
+              <th>Paid</th>
+              <th>Remaining</th>
+              <th>DP</th>
+              <th>Monthly</th>
+              <th>Term</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong><?= $sd ?></strong></td>
+              <td><strong><?= htmlspecialchars($cn) ?></strong></td>
+              <td><strong><?= htmlspecialchars($pn) ?></strong></td>
+              <td><strong><?= htmlspecialchars($pmodel ?: 'N/A') ?></strong></td>
+              <td><strong>₨<?= number_format($pprice, 0) ?></strong></td>
+              <td><strong>₨<?= number_format($total_due_all, 0) ?></strong></td>
+              <td><strong>₨<?= number_format($total_paid_all, 0) ?></strong></td>
+              <td><strong>₨<?= number_format($total_due_all - $total_paid_all, 0) ?></strong></td>
+              <td><strong>₨<?= number_format($dp, 0) ?></strong></td>
+              <td><strong>₨<?= number_format($mi, 0) ?></strong></td>
+              <td><strong><?= $term ?> months</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
-  <!-- Guarantor Information -->
-  <?php if ($g1 || $g2): ?>
+  <!-- Personal Information -->
   <div class="card mb-4">
     <div class="card-header">
-      <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>Guarantor Information</h5>
+      <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Personal Information</h5>
     </div>
     <div class="card-body">
       <div class="row">
+        <!-- Customer Information -->
+        <div class="col-md-4 mb-3">
+          <div class="border rounded p-3">
+            <h6 class="text-primary mb-2"><i class="bi bi-person-circle me-2"></i>Customer</h6>
+            <p class="mb-1"><strong>Name:</strong> <?= htmlspecialchars($cn) ?></p>
+            <?php if ($cphone): ?>
+            <p class="mb-1">
+              <strong>Phone:</strong>
+              <span id="customer-phone-display"><?= htmlspecialchars($cphone) ?></span>
+              <button class="btn btn-sm btn-outline-success ms-2" onclick="callGuarantor('<?= htmlspecialchars($cphone) ?>')" title="Call Customer">
+                <i class="bi bi-telephone-fill"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary ms-1" onclick="copyToClipboard('customer-phone-display')" title="Copy Phone">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </p>
+            <?php endif; ?>
+            <?php if ($caddr): ?>
+            <p class="mb-0"><strong>Address:</strong> <?= htmlspecialchars($caddr) ?></p>
+            <?php endif; ?>
+          </div>
+        </div>
+
         <?php if ($g1): ?>
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
           <div class="border rounded p-3">
             <h6 class="text-primary mb-2"><i class="bi bi-person-check me-2"></i>Guarantor 1</h6>
             <p class="mb-1"><strong>Name:</strong> <?= htmlspecialchars($g1) ?></p>
@@ -163,7 +238,7 @@ $sumQ->close();
         <?php endif; ?>
 
         <?php if ($g2): ?>
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
           <div class="border rounded p-3">
             <h6 class="text-primary mb-2"><i class="bi bi-person-check me-2"></i>Guarantor 2</h6>
             <p class="mb-1"><strong>Name:</strong> <?= htmlspecialchars($g2) ?></p>
@@ -185,11 +260,10 @@ $sumQ->close();
           </div>
         </div>
         <?php endif; ?>
-     
+
       </div>
     </div>
   </div>
-  <?php endif; ?>
   
   <!-- Filter Form -->
   <div class="card mb-4 no-print">
