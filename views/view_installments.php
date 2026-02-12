@@ -184,7 +184,7 @@ $sumQ->close();
   </div>
 
   <!-- Personal Information -->
-  <div class="card mb-4">
+  <div class="card mb-4 no-print">
     <div class="card-header">
       <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Personal Information</h5>
     </div>
@@ -324,9 +324,9 @@ $sumQ->close();
           <td><?= $i++ ?></td>
           <td><?= $row['due_date'] ?></td>
           <td>
-            <strong>Due:</strong> ₨<?= number_format($due,0) ?><br>
-            <strong>Paid:</strong> ₨<?= number_format($paid,0) ?><br>
-            <strong>Remain:</strong> ₨<?= number_format($remaining,0) ?>
+            <strong>Due:</strong> ₨<?= number_format($due,0) ?> |
+            <strong>Paid:</strong> ₨<?= number_format($paid,0) ?> |
+            <strong>Rem:</strong> ₨<?= number_format($remaining,0) ?>
           </td>
           <td><span class="badge <?= $row['status'] == 'paid' ? 'bg-success' : ($row['status'] == 'partial' ? 'bg-warning' : 'bg-danger') ?>"><?= ucfirst($row['status']) ?></span></td>
           <td><?= $row['paid_at'] ?: '—' ?></td>
@@ -536,6 +536,24 @@ function copyToClipboard(elementId) {
 @media print {
   .no-print {
     display: none !important;
+  }
+  /* Compact table for print */
+  .table {
+    font-size: 12px;
+  }
+  .table td, .table th {
+    padding: 4px 8px !important;
+  }
+  /* Make rows more compact */
+  .table tbody tr {
+    line-height: 1.2;
+  }
+  /* Reduce card margins for print */
+  .card {
+    margin-bottom: 10px !important;
+  }
+  .card-body {
+    padding: 10px !important;
   }
 }
 </style>
